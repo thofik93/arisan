@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 const out = process.argv[2] || 'data/export.jsonl';
 const api = process.env.LEARN_API, token = process.env.ADMIN_TOKEN;
-if (!api || !token) { console.error('LEARN_API dan ADMIN_TOKEN wajib diisi'); process.exit(1); }
+if (!api || !token) { console.log('LEARN_API/ADMIN_TOKEN belum diisi, server belum aktif. Lewati.'); fs.mkdirSync('data', { recursive: true }); fs.writeFileSync(out, ''); process.exit(0); }
 fs.mkdirSync(out.replace(/\/[^/]*$/, '') || '.', { recursive: true });
 let after = 0, total = 0;
 fs.writeFileSync(out, '');

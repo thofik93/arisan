@@ -14,6 +14,7 @@ const TELL_KEYS = ['acc', 'acc2', 'def', 'deny', 'quiet', 'claim', 'ask'];
 
 const file = process.argv[2] || 'data/export.jsonl';
 const recs = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)) : [];
+if (!recs.length) { console.log('Belum ada catatan permainan. brain.json tidak diubah.'); process.exit(0); }
 const prev = fs.existsSync('brain.json') ? JSON.parse(fs.readFileSync('brain.json', 'utf8')) : { version: 0 };
 
 // ---------- label untuk model kata ----------
