@@ -189,6 +189,7 @@ details[open] summary{margin-bottom:8px}
 .suspense{font-family:var(--display);font-weight:800;font-size:1.6rem;text-align:center;color:var(--emas)}
 @media (prefers-reduced-motion:no-preference){.suspense{animation:pulse .5s ease-in-out infinite alternate}@keyframes pulse{from{opacity:.4}to{opacity:1}}}
 .sys.narr{background:transparent;color:var(--muted);font-style:italic;font-weight:600}
+.msg .quote{display:block;font-size:12px;color:var(--ink-muted);border-left:3px solid var(--lapis);padding:1px 0 1px 7px;margin:2px 0 4px;background:rgba(0,0,0,.04);border-radius:3px}
 .reacts{display:block;margin-top:4px;font-size:12px;font-weight:700;color:var(--ink-muted)}
 .vlog{display:flex;flex-direction:column;gap:6px;margin-top:12px}
 .vline{display:flex;gap:8px;align-items:center;font-size:14px;background:var(--maroon-deep);border:1px solid var(--line);border-radius:12px;padding:6px 10px}
@@ -475,7 +476,7 @@ function resolveNight(){
       }
     }
   }
-  for(const p of G.players){p.saidInfo=false;p.denied=false;p.mood=Math.max(0,p.mood-1);p.ngambek=false;p.defendedBestie=false;}
+  for(const p of G.players){p.saidInfo=false;p.denied=false;p.mood=Math.max(0,p.mood-1);p.ngambek=false;p.defendedBestie=false;p.replies=0;}
   G.msgs=[];G.phase='day';G.heat=0;
 }
 const FITNAH=[
@@ -493,16 +494,24 @@ const FITNAH=[
    2. Pemahaman tulisan bebas pemain (nama, niat, penyangkalan).
    3. Dendam/pertemanan antar-bot, strategi bandar yang berganti tiap permainan, dan peristiwa drama. */
 
+/* Pembuka/penutup dipilih sesuai maksud kalimat: menuduh, membela, menyangkal, atau netral */
 const VOICE={
-  julid:    {open:['Hmm…','Duh,','Ya ampun,','Bukan maksud nyindir ya, tapi','Gimana ya…'],close:['🙄','😏','Cuma ngomong aja lho.','Aku sih gitu ya.']},
-  polos:    {open:['Eh,','Lho,','Aduh,','Hmm,'],close:['🥺','Bener gak sih?','Aku bingung…']},
-  bijak:    {open:['Ibu-ibu,','Sabar dulu,','Mari kita pikir jernih.','Begini ya,'],close:['Jangan saling suudzon dulu.','Semoga ketemu yang benar.','🙏']},
-  sosialita:{open:['Duh say,','OMG,','Jujur ya Jeng,','Ih,'],close:['💅','Ribet deh.','Literally.','Gak level sih.']},
-  pendiam:  {open:['…','Maaf nyela,','Aku cuma mau bilang,'],close:['…','Itu aja.']},
-  kepo:     {open:['Eh eh eh,','Btw,','Tunggu,','Aku penasaran nih,'],close:['👀','Spill dong!','Ada yang tahu gak?']},
-  baper:    {open:['Ya Allah…','Hiks,','Sumpah ya,','Aku sedih,'],close:['😭','Tega banget sih.','Aku capek…']},
-  tegas:    {open:['Sudah,','Langsung saja.','Dengar ya,','Aku tegaskan,'],close:['Titik.','Fokus!','Jangan muter-muter.']}
+  julid:    {accuse:{o:['Hmm…','Bukan maksud nyindir ya, tapi'],c:['🙄','😏']},defend:{o:[],c:['Gitu aja kok ribut.']},deny:{o:['Ih,'],c:['🙄','Gak level.']},neutral:{o:['Duh,'],c:['😒']}},
+  polos:    {accuse:{o:['Eh,','Hmm,'],c:['🥺','Bener gak sih?']},defend:{o:['Eh,'],c:['🥺']},deny:{o:['Aduh,'],c:['😢']},neutral:{o:['Eh,'],c:['Aku bingung…']}},
+  bijak:    {accuse:{o:['Mohon maaf,','Dengan berat hati,'],c:['Mohon dijelaskan.']},defend:{o:['Ibu-ibu,'],c:['Jangan saling suudzon dulu.']},deny:{o:[],c:['Allah Maha Tahu.']},neutral:{o:['Ibu-ibu,','Sabar dulu,'],c:['🙏']}},
+  sosialita:{accuse:{o:['Jujur ya Jeng,','OMG,'],c:['💅','Literally.']},defend:{o:['Duh say,'],c:['Udah deh.']},deny:{o:['Excuse me,'],c:['Gak level sih.']},neutral:{o:['Duh say,'],c:['Ribet deh.']}},
+  pendiam:  {accuse:{o:['Maaf nyela,'],c:['…']},defend:{o:[],c:['Itu aja.']},deny:{o:['…'],c:[]},neutral:{o:['…'],c:['Itu aja.']}},
+  kepo:     {accuse:{o:['Eh eh eh,','Tunggu,'],c:['👀','Ayo jelasin!']},defend:{o:['Btw,'],c:['👀']},deny:{o:[],c:['👀']},neutral:{o:['Btw,','Eh,'],c:['👀']}},
+  baper:    {accuse:{o:['Hiks,','Sumpah ya,'],c:['😢']},defend:{o:['Ya Allah,'],c:['Kasihan dia 😢']},deny:{o:['Hiks,'],c:['😭','Tega banget sih.']},neutral:{o:['Hiks,'],c:['😢']}},
+  tegas:    {accuse:{o:['Dengar ya,','Langsung saja,'],c:['Titik.','Jangan muter-muter.']},defend:{o:['Dengar ya,'],c:['Titik.']},deny:{o:[],c:['Jangan asal tuduh.']},neutral:{o:['Sudah,'],c:['Fokus!']}}
 };
+const INTENT={};
+for(const c of ['accuse','accuseE','claimBendT','claimGosipT','reportT','debate1','debate2','debate3','debate4','dipaksa','bongkar','bongkarPolos','agree','answer','khianat','sindirB','counterBendT','counterBendNo'])INTENT[c]='accuse';
+for(const c of ['defend','claimBendF','claimGosipF','reportF','tim','bestieDefend','thanks','disagree','comfort','ketua','counterBendF'])INTENT[c]='defend';
+for(const c of ['deny','denyBack','swear','pembelaan','pembelaanBandar','cry','pengakuan','khianatReply','hurt'])INTENT[c]='deny';
+/* Kalimat yang tidak perlu hiasan pembuka/penutup */
+const PLAIN=new Set(['khianat','tim','bestieDefend','rapat','mediate','lastInnocent','lastBandar','lastBluff','reactBandar','reactInnocent','voteComment','sindirA','ngerumpi','rumor','pengakuan','bongkar','bongkarPolos','khianatReply','counterBendT','counterBendF','counterBendNo']);
+const INTERJ=/^(Hah|Ya ampun|Ya Allah|Lho|Eh|Duh|Hmm|Ih|TUNGGU|Sebentar|Ibu-ibu|Aduh|Astagfirullah|Demi|Sumpah|Hiks|Maaf|Jujur|Iya|Oke|Sudah|Nah|Wah|Kok|CUKUP|Silakan|Peluk|YA SUDAH|Aku cuma minta|Sabar)/i;
 const CORE={
   accuse:['Aku curiga sama {t}.','{t} dari kemarin gelagatnya aneh.','Feeling-ku sih {t}.','Coba deh {t} jelasin semalam ke mana.','Kok aku makin yakin ya, {t} orangnya.','Aku pilih {t} hari ini.','Tiap lihat {t} kok aku deg-degan ya.','{t}, jujur aja deh.'],
   accuseE:['Aku curiga sama {t}. Ingat gak, {e}?','{t} itu lho… {e}. Masa kebetulan?','Coba pikir: {e}. Siapa lagi kalau bukan {t}?','Buktinya jelas, {e}. {t}, mau ngeles apa lagi?'],
@@ -549,7 +558,10 @@ const CORE={
   bongkarPolos:['TUNGGU! Aku cuma mau bilang, feeling-ku kuat banget soal {t}.','Sebelum voting… aku mimpi buruk semalam, dan di mimpiku ada {t} 😰'],
   pengakuan:['YA SUDAH! AKU NGAKU! …eh nggak deng 😭 Aku cuma capek dituduh terus!','Oke, oke, aku yang ambil! …bercanda! Aku cuma pengin kalian berhenti nuduh aku 😭'],
   rapat:['Ibu-ibu, RAPAT DARURAT! Yang dari tadi diam, ayo ngomong sekarang!','Saya minta semua bicara. Jangan ada yang sembunyi!'],
-  dipaksa:['Iya iya… menurutku {t} agak aneh.','Aku dari tadi mikir, kayaknya {t} deh.','Maaf aku pendiam, tapi aku curiga {t}.'],
+  dipaksa:['Iya iya… menurutku {t} agak aneh.','Aku dari tadi mikir, kayaknya {t} deh.','Oke, aku ngomong. Aku curiga {t}.'],
+  counterBendT:['Lho?! Aku yang Bendahara asli! {x} bohong! Semalam aku audit {t}, dan dia BANDAR!','Tunggu, {x} ngaku Bendahara? Aku Bendahara-nya! Hasil auditku: {t} itu bandar!'],
+  counterBendF:['Lho?! Aku yang Bendahara asli! {x} bohong! Semalam aku audit {t}, dia bersih.','Tunggu, {x} ngaku Bendahara? Aku Bendahara-nya, dan {t} bersih menurut auditku.'],
+  counterBendNo:['Lho, {t} bohong! Aku Bendahara-nya! Semalam aku diajak ngerumpi, jadi belum sempat audit.','Bendahara itu aku, bukan {t}! Hati-hati sama dia.'],
   lastInnocent:['Kalian salah orang. Nanti kalian nyesel… 💔','Ya sudah, aku keluar. Semoga kalian ketemu bandar aslinya.','Aku bersih! Ingat ya, aku sudah bilang dari awal!'],
   lastBandar:['Ya sudah, aku ngaku… uangnya sudah buat cicilan panci 😭','Hmph. Kalian beruntung kali ini.','Aku cuma pinjam kok, nanti juga dibalikin… mungkin.'],
   lastBluff:['Kalian salah besar!','Aku bersih, sumpah!','Kalian akan menyesal sudah ngeluarin aku!'],
@@ -567,7 +579,7 @@ const COLOR_NAME={'#c2185b':'pink tua','#4fc3f7':'biru muda','#2e7d32':'hijau','
 const REACTS={accuse:['😱','👀','🙄'],claimBend:['😱','😤','👀'],deny:['🤔','🙄','😬'],swear:['🤲','🤔'],cry:['🥺','🤗','😢'],salah:['👀','😳','🤭'],shot:['😱','🔥','👀'],jab:['🔥','😬','🍿'],pengakuan:['😱','😂','🤦'],khianat:['💔','😱','🍿']};
 const BANDAR_STRATEGIES=['kambing','palsu','diam','drama','bestie'];
 
-function lowerFirst(s){return /^(Bu|TUH)\b/.test(s)?s:s.charAt(0).toLowerCase()+s.slice(1);}
+function lowerFirst(s){return /^(Bu|TUH|[A-Z]{2,})\b/.test(s)?s:s.charAt(0).toLowerCase()+s.slice(1);}
 function fillCore(c,vars){return c.replace(/\{(\w)\}/g,(_,k)=>vars[k]||'');}
 /* Menyusun satu kalimat: inti + gaya bicara + emosi, sebisa mungkin tidak mengulang kalimat yang sudah dipakai */
 function compose(p,core,vars){
@@ -575,30 +587,33 @@ function compose(p,core,vars){
   let line=null;
   for(let i=0;i<6;i++){line=fillCore(pickR(arr),vars);if(!G.used.has(line))break;}
   G.used.add(line);
-  if(!p.bot)return line;
-  const v=VOICE[p.bot];let out=line;
-  if(rnd()<.4)out=pickR(v.open)+' '+lowerFirst(out);
-  if(rnd()<.4)out=out+' '+pickR(v.close);
-  if(p.mood>=2&&rnd()<.5)out=out.replace(/[.…]$/,'!');
-  if(p.mood>=3&&rnd()<.25)out=out.toUpperCase();
+  if(!p.bot||PLAIN.has(core))return line;
+  const v=VOICE[p.bot][INTENT[core]||'neutral'];
+  let out=line;
+  if(v.o.length&&rnd()<.4&&!INTERJ.test(out)){const o=pickR(v.o);out=o+' '+(/,$/.test(o)?lowerFirst(out):out);}
+  if(v.c.length&&rnd()<.35&&!/[?]$/.test(out)&&!/\p{Extended_Pictographic}$/u.test(out))out=out+' '+pickR(v.c);
+  if(p.mood>=2&&rnd()<.4)out=out.replace(/[.…]$/,'!');
+  if(p.mood>=3&&rnd()<.2&&out.length<70&&(INTENT[core]==='deny'||INTENT[core]==='accuse'))out=out.toUpperCase();
   return out;
 }
 /* Memori permainan: alasan konkret untuk mencurigai seseorang */
 function evidence(sp,t){
   const facts=[],nm=id=>pl(id).name;
+  let atkCount=0;
   for(const m of G.allMsgs){
-    if(m.from===t&&m.type==='accuse'&&m.target!=null&&!pl(m.target).alive&&pl(m.target).role!=='bandar')facts.push(`kemarin ${nm(t)} ngotot nuduh ${nm(m.target)}, ternyata ${nm(m.target)} bersih`);
-    if(m.from===t&&m.type==='defend'&&m.target!=null&&!pl(m.target).alive&&pl(m.target).role==='bandar')facts.push(`${nm(t)} kemarin malah belain ${nm(m.target)} yang ternyata bandar`);
-    if(m.from===t&&m.type==='claimBend'&&G.bendClaimers.some(x=>x!==t))facts.push(`${nm(t)} ngaku Bendahara, padahal ada orang lain yang ngaku juga`);
-    if(m.target===t&&m.type==='report'&&m.value)facts.push(`ada yang lihat ${nm(t)} keluar rumah malam-malam`);
-    if(m.from===t&&m.target===sp.id&&(m.type==='accuse'||m.type==='claimBend'))facts.push(`${nm(t)} dari tadi nyerang aku terus`);
+    if(m.from===t&&m.type==='accuse'&&m.target!=null&&!pl(m.target).alive&&pl(m.target).role!=='bandar')facts.push(`kemarin dia ngotot nuduh ${nm(m.target)}, ternyata ${nm(m.target)} bersih`);
+    if(m.from===t&&m.type==='defend'&&m.target!=null&&!pl(m.target).alive&&pl(m.target).role==='bandar')facts.push(`kemarin dia malah belain ${nm(m.target)} yang ternyata bandar`);
+    if(m.from===t&&m.type==='claimBend'&&G.bendClaimers.some(x=>x!==t))facts.push(`dia ngaku Bendahara, padahal ada orang lain yang ngaku juga`);
+    if(m.target===t&&m.type==='report'&&m.value)facts.push(`ada yang lihat dia keluar rumah malam-malam`);
+    if(m.from===t&&m.target===sp.id&&(m.type==='accuse'||m.type==='claimBend'))atkCount++;
   }
+  if(atkCount>=2)facts.push('dari tadi dia nyerang aku terus');
   for(const nw of G.news){
-    if(nw.type==='sandal'&&pl(t).sandal===nw.color)facts.push(`sandal ${nm(t)} warnanya ${nw.color}, sama kayak yang dilihat dekat kotak kas`);
-    if(nw.type==='fitnah'&&nw.target===t)facts.push(`kabarnya ${nm(t)} ${nw.text}`);
+    if(nw.type==='sandal'&&pl(t).sandal===nw.color)facts.push(`sandalnya warna ${nw.color}, sama kayak yang dilihat dekat kotak kas`);
+    if(nw.type==='fitnah'&&nw.target===t)facts.push(`kabarnya dia ${nw.text}`);
   }
-  for(const v of G.votes)for(const [voter,x] of v.votes)if(voter===t&&v.kicked===x&&pl(x).role!=='bandar')facts.push(`${nm(t)} ikut ngeluarin ${nm(x)} yang ternyata bersih`);
-  if(pl(t).salahSus)facts.push(`${nm(t)} kemarin salah kirim pesan soal transfer uang`);
+  for(const v of G.votes)for(const [voter,x] of v.votes)if(voter===t&&v.kicked===x&&pl(x).role!=='bandar')facts.push(`dia ikut ngeluarin ${nm(x)} yang ternyata bersih`);
+  if(pl(t).salahSus)facts.push('kemarin dia salah kirim pesan soal transfer uang');
   return facts.length?pickR(facts):null;
 }
 function textFor(m){
@@ -619,54 +634,52 @@ function bump(a,b,d){if(a===b)return;const p=pl(a);p.grudge[b]=(p.grudge[b]||0)+
 
 /* ---------- rencana bicara + peristiwa drama ---------- */
 function planSpeakers(){
-  const slots=[];
   const bots=shuffle(alive().filter(p=>!p.human));
-  bots.sort((a,b)=>(G.night.results[b.id]&&b.role!=='bandar'?1:0)-(G.night.results[a.id]&&a.role!=='bandar'?1:0));
-  for(const b of bots)slots.push(b.id);
-  for(const b of shuffle(bots)){
-    let talk=PERS[b.bot].talk;
-    if(b.role==='bandar'&&b.strategy==='diam')talk*=.4;
-    if(b.role==='bandar'&&b.strategy==='drama')talk=1;
-    if(rnd()<talk)slots.push(b.id);
-  }
-  const f=G.news.find(n=>n.type==='fitnah');
-  if(f){const r=bots.find(b=>['julid','kepo','sosialita'].includes(b.bot)&&b.id!==f.target);if(r)slots.splice(1,0,{rumor:r.id,target:f.target});}
-  const add=arr=>{const at=Math.min(slots.length,2+ri(Math.max(1,slots.length-1)));slots.splice(at,0,...arr);};
   const ok=id=>id!=null&&pl(id).alive;
-  // musuh bebuyutan: sindiran di hari pertama, debat panjang setelahnya
+  const opening=[],info=[],talk=[],drama=[];
+  // reaksi atas kabar pagi selalu di awal
+  const f=G.news.find(n=>n.type==='fitnah');
+  if(f){const r=bots.find(b=>['julid','kepo','sosialita'].includes(b.bot)&&b.id!==f.target)||bots.find(b=>b.id!==f.target);if(r)opening.push([{rumor:r.id,target:f.target}]);}
+  for(const b of bots)(G.night.results[b.id]&&b.role!=='bandar'?info:talk).push([b.id]);
+  for(const b of shuffle(bots)){
+    let t=PERS[b.bot].talk;
+    if(b.role==='bandar'&&b.strategy==='diam')t*=.4;
+    if(b.role==='bandar'&&b.strategy==='drama')t=1;
+    if(rnd()<t)talk.push([b.id]);
+  }
+  // musuh bebuyutan
   const [ra,rb]=G.rivals||[];
-  if(ok(ra)&&ok(rb)){
-    if(G.day===1)add([{drama:'sindir',a:ra,b:rb,step:0},{drama:'sindir',a:ra,b:rb,step:1}]);
-    else add([0,1,2,3,4,5,6].map(step=>({drama:'ldebat',a:ra,b:rb,step})));
-  }
-  // besti: pengkhianatan kalau salah satunya makin dicurigai
+  if(ok(ra)&&ok(rb))drama.push(G.day===1?[{drama:'sindir',a:ra,b:rb,step:0},{drama:'sindir',a:ra,b:rb,step:1}]:[0,1,2,3,4,5,6].map(step=>({drama:'ldebat',a:ra,b:rb,step})));
+  // besti berkhianat
   const [ba,bb]=G.besties||[];
-  if(ok(ba)&&ok(bb)&&!G.betrayed&&G.day>=2){
-    const [hi,lo]=[ba,bb].sort((x,y)=>pubSusp(y)-pubSusp(x));
-    if(pubSusp(hi)>.4)add([{drama:'khianat',a:lo,b:hi,step:0},{drama:'khianat',a:lo,b:hi,step:1}]);
-  }
+  if(ok(ba)&&ok(bb)&&!G.betrayed&&G.day>=2){const [hi,lo]=[ba,bb].sort((x,y)=>pubSusp(y)-pubSusp(x));if(pubSusp(hi)>.4)drama.push([{drama:'khianat',a:lo,b:hi,step:0},{drama:'khianat',a:lo,b:hi,step:1}]);}
   // kejutan: dua sampai tiga per hari
   const cand=[];
-  if(bots.length)cand.push(()=>add([{drama:'salah',who:pickR(bots).id}]),()=>add([{drama:'voice',who:pickR(bots).id}]),()=>add([{drama:'cctv'}]),()=>add([{drama:'paket'}]));
+  if(bots.length)cand.push([{drama:'salah',who:pickR(bots).id}],[{drama:'voice',who:pickR(bots).id}],[{drama:'cctv'}],[{drama:'paket'}]);
   const victim=bots.filter(b=>b.framed+b.accusedCount>=2).sort((a,b)=>(b.framed+b.accusedCount)-(a.framed+a.accusedCount))[0];
-  if(victim)cand.push(()=>add([{drama:'curhat',who:victim.id}]));
+  if(victim)cand.push([{drama:'curhat',who:victim.id}]);
   const baper=bots.find(b=>(b.bot==='baper'||b.bot==='polos')&&b.role!=='bandar'&&b.accusedCount>=1&&!b.confessed);
-  if(baper)cand.push(()=>add([{drama:'pengakuan',who:baper.id}]));
+  if(baper)cand.push([{drama:'pengakuan',who:baper.id}]);
   const chair=bots.find(b=>b.role==='ketua')||bots.find(b=>b.bot==='tegas'||b.bot==='bijak');
-  if(chair&&bots.length>=3){const quiet=bots.filter(b=>b.id!==chair.id).sort((a,b)=>PERS[a.bot].talk-PERS[b.bot].talk).slice(0,2);
-    cand.push(()=>add([{drama:'rapat',who:chair.id},...quiet.map(q=>({drama:'dipaksa',who:q.id}))]));}
+  if(chair&&bots.length>=3){
+    const quiet=bots.filter(b=>b.id!==chair.id&&!(b.role==='bandar'&&b.strategy==='drama')).sort((a,b)=>PERS[a.bot].talk-PERS[b.bot].talk).slice(0,2);
+    cand.push([{drama:'rapat',who:chair.id},...quiet.map(q=>({drama:'dipaksa',who:q.id}))]);
+  }
   const liar=G.allMsgs.find(m=>m.type==='claimBend'&&!G.shotDone.has(m.from)&&pl(m.from).alive&&m.target!=null&&!pl(m.target).alive&&(pl(m.target).role==='bandar')!==m.value);
   const twoBend=G.bendClaimers.filter(x=>pl(x).alive).length>=2&&!G.shotDone.has('two');
-  if((liar||twoBend)&&bots.length)cand.push(()=>add([{drama:'shot',who:pickR(bots).id,liar:liar?liar.from:null,quote:liar?liar.text:null}]));
-  shuffle(cand).slice(0,2+(rnd()<.5?1:0)).forEach(fn=>fn());
-  return slots;
+  if((liar||twoBend)&&bots.length)cand.push([{drama:'shot',who:pickR(bots).id,liar:liar?liar.from:null,quote:liar?liar.text:null}]);
+  drama.push(...shuffle(cand).slice(0,2+(rnd()<.5?1:0)));
+  // urutan: kabar pagi, yang punya info, lalu obrolan dan drama berselang-seling; setiap blok utuh
+  const rest=shuffle(talk);
+  for(const d of drama)rest.splice(Math.min(rest.length,1+ri(Math.max(1,rest.length))),0,d);
+  return [...opening,...info,...rest].flat();
 }
 function accusedToday(id){return G.msgs.filter(m=>m.target===id&&(m.type==='accuse'||(m.type==='claimBend'&&m.value)||(m.type==='claimGosip'&&m.value)||(m.type==='report'&&m.value)));}
 function botSpeak(slot){
   const m=botSpeakRaw(slot);
   if(!m)return null;
   if(m.sys)return m;
-  const dup=G.msgs.some(x=>x.from===m.from&&x.type===m.type&&x.target===m.target&&x.value===m.value&&!x.core&&!m.core);
+  const dup=!m.replyTo&&G.msgs.some(x=>x.from===m.from&&x.type===m.type&&x.target===m.target&&x.value===m.value&&!x.core&&!m.core);
   if(dup)return m.type==='flavor'?null:{from:m.from,type:'flavor'};
   return m;
 }
@@ -678,7 +691,9 @@ function pickAccuseTarget(p){
 function botSpeakRaw(slot){
   if(typeof slot==='object'){
     if(slot.rumor!=null){const p=pl(slot.rumor);if(!p.alive)return null;return{from:p.id,type:'rumor',target:slot.target};}
-    if(slot.reply!=null)return botReply(pl(slot.reply),slot.hm);
+    if(slot.reply!=null){const r=botReply(pl(slot.reply),slot.hm);if(r)r.replyTo=slot.hm;return r;}
+    if(slot.respond!=null)return botRespond(pl(slot.respond),slot.to);
+    if(slot.counter!=null){const r=botCounter(pl(slot.counter),slot.to);return r;}
     if(slot.drama)return dramaSpeak(slot);
     return null;
   }
@@ -691,7 +706,7 @@ function botSpeakRaw(slot){
     const hard=accused.find(m=>m.type==='claimBend');
     if(hard&&p.role==='bendahara'&&p.audited&&p.audited.length){const t=p.audited[p.audited.length-1];return{from:p.id,type:'claimBend',target:t,value:isBandar(t)};}
     const back=accused[0].from;
-    return{from:p.id,type:'deny',back:rnd()<.35+.15*grudge(p.id,back)?back:null};
+    return{from:p.id,type:'deny',back:rnd()<.35+.15*grudge(p.id,back)?back:null,replyTo:accused[accused.length-1]};
   }
   const bestie=G.besties&&G.besties.includes(p.id)&&!G.betrayed?G.besties.find(x=>x!==p.id):null;
   if(bestie!=null&&pl(bestie).alive&&accusedToday(bestie).length&&!p.defendedBestie){p.defendedBestie=G.day;return{from:p.id,type:'defend',target:bestie,core:'bestieDefend'};}
@@ -723,8 +738,8 @@ function bandarSpeak(p,accused,per){
   if(accused.length&&!p.denied){
     p.denied=true;accused.forEach(m=>m.answered=true);
     const hard=accused.find(m=>m.type==='claimBend');
-    if(hard&&rnd()<Math.min(.95,per.lie+TUNE.counterP))return{from:p.id,type:'claimBend',target:hard.from,value:true};
-    return{from:p.id,type:'deny',back:p.strategy==='drama'||rnd()<.4?accused[0].from:null};
+    if(hard&&rnd()<Math.min(.95,per.lie+TUNE.counterP))return{from:p.id,type:'claimBend',target:hard.from,value:true,replyTo:hard};
+    return{from:p.id,type:'deny',back:p.strategy==='drama'||rnd()<.4?accused[0].from:null,replyTo:accused[accused.length-1]};
   }
   if(partner&&accusedToday(partner.id).some(m=>m.type==='claimBend')&&rnd()<.35)return{from:p.id,type:'defend',target:partner.id};
   const st=p.strategy;
@@ -833,6 +848,40 @@ function sidangSpeak(s){
     return{from:p.id,type:'accuse',target:t,core:e?'bongkar':'bongkarPolos',e};
   }
   return null;
+}
+/* Tanggapan langsung setelah sebuah pesan: yang dituduh membalas, Bendahara asli membantah klaim palsu */
+function followUps(m){
+  const out=[];
+  if(!m||m.sys||m.from==null||m.noFollow)return out;
+  const t=m.target!=null?pl(m.target):null;
+  const hostile=m.type==='accuse'||((m.type==='claimBend'||m.type==='claimGosip'||m.type==='report')&&m.value);
+  const scripted=m.core&&/^(debate|khianat|sindir|tim|bongkar)/.test(m.core);
+  if(t&&!t.human&&t.alive&&hostile&&!scripted&&(t.replies||0)<2&&rnd()<.85)out.push({respond:t.id,to:m});
+  if(m.type==='claimBend'){
+    const real=alive().find(q=>q.role==='bendahara'&&!q.human&&q.id!==m.from&&q.counterDay!==G.day);
+    if(real&&!(t&&t.id===real.id&&out.length))out.push({counter:real.id,to:m});
+  }
+  return out;
+}
+function botRespond(p,m){
+  if(!p.alive)return null;
+  p.replies=(p.replies||0)+1;
+  m.answered=true;p.denied=true;
+  const from=m.from,base={from:p.id,replyTo:m};
+  if(m.type==='claimBend'&&m.value){
+    if(p.role==='bendahara'){p.counterDay=G.day;const a=p.audited&&p.audited.length?p.audited[p.audited.length-1]:null;
+      return a!=null&&a!==p.id?{...base,type:'claimBend',target:a,value:isBandar(a),core:isBandar(a)?'counterBendT':'counterBendF',x:from}:{...base,type:'accuse',target:from,core:'counterBendNo'};}
+    if(p.role==='bandar'&&rnd()<Math.min(.95,PERS[p.bot].lie+TUNE.counterP))return{...base,type:'claimBend',target:from,value:true};
+  }
+  if(p.role==='bandar'&&p.strategy==='drama'&&rnd()<.5){const e=evidence(p,from);return{...base,type:'accuse',target:from,e,core:e?'accuseE':'denyBack'};}
+  return{...base,type:'deny',back:rnd()<.35+.15*grudge(p.id,from)?from:null};
+}
+function botCounter(p,m){
+  if(!p.alive||p.counterDay===G.day)return null;
+  p.counterDay=G.day;p.saidInfo=true;
+  const a=p.audited&&p.audited.length?p.audited[p.audited.length-1]:null;
+  if(a!=null&&pl(a).alive&&a!==p.id)return{from:p.id,replyTo:m,type:'claimBend',target:a,value:isBandar(a),core:isBandar(a)?'counterBendT':'counterBendF',x:m.from};
+  return{from:p.id,replyTo:m,type:'accuse',target:m.from,core:'counterBendNo'};
 }
 /* Balasan bot untuk pesan pemain */
 function botReply(p,hm){
@@ -992,7 +1041,7 @@ function simulate(games,n){
     while(!G.winner){
       G.night.actions={};for(const p of alive())G.night.actions[p.id]=botNightAction(p);
       resolveNight();
-      for(const s of planSpeakers()){const m=botSpeak(s);if(!m)continue;if(m.sys){if(m.apply)m.apply();}else applyMsg(m);}
+      const q=planSpeakers();for(let i=0;i<q.length;i++){const m=botSpeak(q[i]);if(!m)continue;if(m.sys){if(m.apply)m.apply();continue;}applyMsg(m);q.splice(i+1,0,...followUps(m));}
       const votes=alive().map(p=>[p.id,botVote(p)]);const t=tally(votes);
       if(t.kicked!=null)applyKick(t.kicked,votes);
       if(!checkWin(true))G.day++;
@@ -1002,7 +1051,7 @@ function simulate(games,n){
   R=Math.random;
   return{wargaWin:warga/games,avgDays:days/games};
 }
-window.ArisanSim={simulate,TUNE,debug:{get G(){return G;},newGame,parseHuman,compose,textFor,evidence,prob,pubSusp,alive,botNightAction,resolveNight,planSpeakers,botSpeak,applyMsg,botVote,tally}};
+window.ArisanSim={simulate,TUNE,debug:{get G(){return G;},newGame,followUps,parseHuman,compose,textFor,evidence,prob,pubSusp,alive,botNightAction,resolveNight,planSpeakers,botSpeak,applyMsg,botVote,tally}};
 
 /* ================= layar ================= */
 let screen='home';
@@ -1252,7 +1301,8 @@ function msgHTML(m,id){
   const claim=['claimBend','claimGosip','report','ketua','shot'].includes(m.type);
   const title=p.title?` <small>· ${esc(p.title)}</small>`:'';
   const cls=[me?'me':'',claim?'claim':'',m.type==='cry'?'cry':'',m.type==='salah'?'salah':''].join(' ');
-  return `<div class="msg ${cls}" ${id?`id="${id}"`:''}>${av(p,30)}<div class="bubble"><span class="who" style="color:${p.hijab}">${esc(p.name)}${title}</span><span class="txt">${esc(m.text)}</span></div></div>`;
+  const q=m.replyTo&&m.replyTo.from!=null&&m.replyTo.text?`<span class="quote">↪ ${esc(pl(m.replyTo.from).name)}: ${esc(m.replyTo.text.length>48?m.replyTo.text.slice(0,48)+'…':m.replyTo.text)}</span>`:'';
+  return `<div class="msg ${cls}" ${id?`id="${id}"`:''}>${av(p,30)}<div class="bubble"><span class="who" style="color:${p.hijab}">${esc(p.name)}${title}</span>${q}<span class="txt">${esc(m.text)}</span></div></div>`;
 }
 /* Kecepatan obrolan: lama mengetik mengikuti panjang pesan, ditambah jeda antar-pesan untuk berpikir */
 const SPEEDS={
@@ -1291,6 +1341,7 @@ function tick(tok){
   later(tok,typingTime(m.text),()=>{
     if(!who.alive){tick(tok);return;}
     applyMsg(m);addHeat(m);
+    chat.queue.splice(chat.idx,0,...followUps(m));
     const mid='m'+(G.msgCounter=(G.msgCounter||0)+1);
     addToFeed(msgHTML(m,mid));sfx.pop();
     const rk=m.khianat?'khianat':m.type==='claimBend'&&!m.value?null:m.type;
@@ -1357,7 +1408,7 @@ function sendHuman(raw){
   const text=String(raw||'').replace(/[<>]/g,'').trim().slice(0,160);
   if(!text||chat.sent>=MAX_SEND)return;
   const hm=parseHuman(text);
-  const m={from:me.id,text,type:'chat',target:hm.target};
+  const m={from:me.id,text,type:'chat',target:hm.target};hm.from=me.id;hm.text=text;
   if(['accuse','defend','claimBend','claimGosip','report'].includes(hm.type)){m.type=hm.type;m.value=hm.value;}
   else if(hm.type==='swear'||hm.type==='deny'){m.type='swear';}
   else if(hm.type==='claimRole'){m.type='claimRole';}
