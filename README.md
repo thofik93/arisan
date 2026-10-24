@@ -10,6 +10,34 @@ Game social deduction ala ibu-ibu arisan, untuk web, Android, dan iOS. Ada Banda
 - **Arisan Harian:** pembagian peran, bot, dan warna sandal sama untuk semua orang pada tanggal yang sama. Hasilnya bisa dibagikan dalam format singkat ala Wordle.
 - **Main bareng, oper HP:** 4–8 orang di satu HP. HP dioper untuk melihat peran, aksi malam, dan voting rahasia. Diskusinya ngobrol langsung, dengan timer.
 
+## Otak ARISAN
+
+Ibu-ibu bot digerakkan oleh **Otak ARISAN**, model bahasa yang dibuat khusus untuk game ini. Model ini berjalan sepenuhnya di perangkat, tanpa internet, tanpa API key, dan tanpa biaya.
+
+- **Pemahaman tulisan bebas:** pemain bisa mengetik apa saja. Otak ARISAN mengenali nama yang disebut (juga yang disingkat, misalnya "Siti"), niat (menuduh, membela, mengaku Bendahara, melapor, bertanya, bersumpah, marah, sedih), penyangkalan ("gak curiga", "bukan bandar"), dan akhiran kata ("bandarnya").
+- **Penyusun kalimat:** kalimat dirangkai dari potongan inti, gaya bicara tiap kepribadian, dan emosi saat itu. Kalimat yang sudah dipakai dihindari dalam satu permainan.
+- **Memori:** bot menyebut bukti nyata dari permainan yang sedang berjalan, misalnya siapa yang kemarin menuduh orang yang ternyata bersih, sandal yang cocok dengan petunjuk, atau siapa yang membela bandar.
+- **Dendam dan pertemanan:** dituduh atau dipilih saat voting membuat bot menyimpan dendam, sehingga tuduhan dan suara mereka tidak selalu logis.
+- **Strategi bandar** diacak setiap permainan: *kambing hitam*, *Bendahara palsu*, *diam-diam*, *ratu drama*, atau *bestie* (mendekati pemain).
+
+### Drama
+
+- Indikator suasana grup, dari Adem sampai Membara.
+- Perdebatan dua ibu yang saling dendam, lalu ada yang menengahi.
+- Curhat sambil menangis dari yang paling sering dituduh.
+- Ngambek keluar grup setelah dituduh bertubi-tubi, lalu dimasukkan lagi oleh Bu RT.
+- Salah kirim pesan yang langsung dihapus, tapi sudah sempat terbaca. Pesan dari bandar lebih sering mencurigakan.
+- "Screenshot" bukti saat ada dua orang mengaku Bendahara, atau klaim yang terbukti bohong.
+- Kata-kata terakhir sebelum dikeluarkan, jeda menegangkan sebelum peran dibuka, lalu reaksi ibu-ibu lain.
+
+### Kenapa bukan LLM?
+
+Ada dua jalur LLM, dan keduanya tidak cocok untuk versi ini:
+- **LLM lewat API** (Claude dan sejenisnya) butuh server perantara untuk menyimpan API key, dan setiap permainan memakan biaya.
+- **LLM lokal di HP** (misalnya Qwen atau Gemma lewat WebGPU) butuh unduhan sekitar 1 GB dan HP yang cukup baru. Balasannya juga bisa makan 5–20 detik per pesan, dan bahasa Indonesia model kecil masih kaku.
+
+Otak ARISAN dirancang supaya nanti bisa disambungkan ke LLM sebagai pilihan tambahan, tanpa mengubah aturan game.
+
 ## Aturan
 
 | Peran | Aksi malam |
@@ -31,11 +59,11 @@ Angka-angka aturan ada di objek `TUNE` di `index.html`, dan disetel lewat simula
 
 | Pemain | Warga menang (simulasi semua-bot) |
 |---|---|
-| 6 | ±57% |
-| 7 | ±61% |
-| 8 | ±58% |
+| 6 | ±58% |
+| 7 | ±64% |
+| 8 | ±65% |
 
-Untuk 4–5 pemain (hanya di mode oper HP), simulasi bot masih menguntungkan warga (±75–90%). Itu karena bot jauh lebih sistematis daripada manusia yang sedang ngobrol santai. Perlu diuji dengan pemain sungguhan.
+Untuk 4–5 pemain (hanya di mode oper HP), simulasi bot masih menguntungkan warga (±84–92%). Itu karena bot jauh lebih sistematis daripada manusia yang sedang ngobrol santai. Perlu diuji dengan pemain sungguhan.
 
 ## Yang membuat orang ingin kembali
 

@@ -22,7 +22,9 @@ CARA MAIN
 • Voting: yang suaranya terbanyak dikeluarkan dari grup dan perannya dibuka.
 
 FITUR
-• Main sama 5–7 ibu-ibu bot yang punya kepribadian: julid, polos, bijak, sosialita, kepo, dan lainnya. Mereka benar-benar menebak, dan bandarnya bisa bohong.
+• Main sama 5–7 ibu-ibu bot yang punya kepribadian: julid, polos, bijak, sosialita, kepo, dan lainnya. Mereka benar-benar menebak, menyimpan dendam, dan bandarnya bisa bohong.
+• Ketik pesan sesukamu. Ibu-ibu bot paham kalau kamu menuduh, membela, mengaku, atau bersumpah, lalu membalas, bahkan balik menuduhmu.
+• Penuh drama: perdebatan, curhat sambil nangis, ngambek keluar grup, salah kirim pesan, screenshot bukti bohong, dan kata-kata terakhir sebelum dikeluarkan.
 • Mode oper HP untuk 4–8 orang: cocok dimainkan pas arisan beneran.
 • Arisan Harian: soal yang sama untuk semua orang setiap hari. Bandingkan hasilmu dengan teman.
 • Kocokan arisan setelah setiap permainan, dengan peluang yang ditampilkan terbuka.
