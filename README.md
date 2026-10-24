@@ -20,6 +20,24 @@ Ibu-ibu bot digerakkan oleh **Otak ARISAN**, model bahasa yang dibuat khusus unt
 - **Dendam dan pertemanan:** dituduh atau dipilih saat voting membuat bot menyimpan dendam, sehingga tuduhan dan suara mereka tidak selalu logis.
 - **Strategi bandar** diacak setiap permainan: *kambing hitam*, *Bendahara palsu*, *diam-diam*, *ratu drama*, atau *bestie* (mendekati pemain).
 
+### Penalaran dan tata bahasa generatif
+
+- **Deduksi dari fakta permainan:**
+  - pembohong yang terbukti (klaim yang bertentangan dengan peran yang sudah dibuka);
+  - dua orang yang sama-sama mengaku Bendahara;
+  - eliminasi petunjuk sandal dan CCTV ("yang sandalnya merah cuma A dan B; A sudah diaudit bersih, berarti B");
+  - pola voting, pembela bandar, alibi yang berubah untuk malam yang sama, dan hasil investigasi sendiri.
+- **Kalimat dibangun dari makna:** tingkat keyakinan bot (dari "agak curiga" sampai "yakin seratus persen"), alasan yang benar-benar dia punya, penghubung, kesimpulan, saran, sapaan sesuai kepribadian ("Jeng Lilis", "Bu Hj. Siti"), dan partikel ("sih", "lho", "deh"). Susunan kalimatnya juga berganti-ganti. Alasan yang sudah disebut orang lain dirujuk ("seperti kata Bu Ratna tadi"), tidak diulang.
+- **Sangkalan menjawab isi tuduhan:**
+  - dituduh keluar rumah → memberi alasan kenapa keluar;
+  - kena gosip → menyebutnya fitnah;
+  - kena petunjuk sandal → menunjuk orang lain yang sandalnya sama warnanya.
+  
+  Setiap orang punya alibi sendiri. Bandar kadang mengganti alibinya, dan itu bisa ketahuan.
+- **Terpojok:** bot yang tidak bersalah tapi dicurigai membuka peran dan hasil investigasinya untuk menyelamatkan diri.
+- **Bendahara asli** langsung membantah klaim Bendahara palsu. Yang dituduh langsung membalas, dengan kutipan pesan yang dibalas.
+- **Bandar** hanya memakai fakta publik saat menuduh, supaya tidak membocorkan pengetahuannya sendiri.
+
 ### Drama
 
 - **Alur sinetron:** setiap permainan ada sepasang musuh bebuyutan (saling sindir di hari pertama, lalu debat panjang sampai penonton memihak) dan sepasang besti (saling membela, tapi bisa berkhianat kalau salah satunya makin dicurigai).

@@ -370,7 +370,7 @@ function newGame(opts){
     }
   }
   players.forEach((p,i)=>{p.id=i;p.role=roles[i];p.alive=true;p.beliefs={};p.saidInfo=false;p.votesGot=0;p.framed=0;
-    p.grudge={};p.mood=0;p.accusedCount=0;if(p.role==='bandar'&&p.bot)p.strategy=pickR(BANDAR_STRATEGIES);});
+    p.grudge={};p.mood=0;p.accusedCount=0;p.knowledge=[];p.alibi=null;p.alibiSaid=null;if(p.role==='bandar'&&p.bot)p.strategy=pickR(BANDAR_STRATEGIES);});
   // sandal: tiap bandar berbagi warna dengan minimal satu warga
   const order=shuffle(players.map(p=>p.id));
   order.forEach((id,k)=>{const s=SANDAL[k%SANDAL.length];players[id].sandal=s[0];players[id].sandalHex=s[1];});
@@ -385,7 +385,7 @@ function newGame(opts){
   G={mode:opts.mode,daily:!!opts.daily,seed:opts.seed,n,players,day:1,kas:KAS_START,phase:'night',
      night:{actions:{},results:{}},news:[],msgs:[],allMsgs:[],bendClaimers:[],votes:[],kicked:[],
      winner:null,reason:'',humanStats:{statements:0,votedBandar:0,votes:0,framed:false},token:0,
-     used:new Set(),shotDone:new Set(),heat:0};
+     used:new Set(),shotDone:new Set(),heat:0,newsLog:[]};
   // alur sinetron: sepasang musuh bebuyutan dan sepasang besti di antara bot
   const botIds=shuffle(players.filter(p=>!p.human).map(p=>p.id));
   if(botIds.length>=4){
@@ -458,6 +458,8 @@ function resolveNight(){
   }
   if(bandars.length&&rnd()<TUNE.sandalP)news.push({type:'sandal',color:pickR(bandars).sandal});
   G.night.results=res;G.news=news;
+  G.newsLog.push(...news.map(n=>({...n,day:G.day})));
+  for(const p of alive()){const r=res[p.id];if(r&&['audit','gosip','intip','jaga'].includes(r.type))p.knowledge.push({day:G.day,...r});}
   // pengetahuan pribadi bot
   for(const p of alive()){
     const r=res[p.id];if(!r||p.human)continue;
@@ -550,7 +552,7 @@ const CORE={
   debate4:['Silakan bongkar! Aku gak takut, {t}!','Oke {t}, kita lihat siapa yang keluar duluan!','Kamu yang mulai ya, {t}. Ingat itu!'],
   tim:['Aku tim {t} ya. Maaf.','Aku sih percaya sama {t}.','Kali ini aku di pihak {t}.'],
   bestieDefend:['Jangan sentuh {t}! Dia besti-ku dari jaman TK!','Aku jamin {t} 100%. Kalau dia bandar, aku juga bandar!','Kalian kenapa sih nyerang {t} terus?! 😤'],
-  khianat:['Maaf {t}… kali ini aku gak bisa belain kamu 💔','{t}, aku sayang kamu, tapi buktinya makin jelas…','Jeng {t}, jujur sama aku. Kamu ya?'],
+  khianat:['Maaf {t}… kali ini aku gak bisa belain kamu 💔','{t}, aku sayang kamu, tapi buktinya makin jelas…','{t}, jujur sama aku. Kamu ya?'],
   khianatReply:['{t}?! Kamu juga?! Kita kan besti! 😭','Tega kamu {t}… aku kira kamu beda.','Oke {t}. Aku catat ya. Sampai kapan pun aku ingat.'],
   pembelaan:['Aku mau bicara sebelum voting. Aku bersih, dan aku siap dibuktikan!','Kalau kalian keluarin aku, bandar aslinya ketawa di belakang kita.','Aku cuma minta kalian pikir jernih. Lihat siapa yang paling ribut nuduh orang.','Demi anak-anakku, aku bukan bandar!'],
   pembelaanBandar:['Aku bersih, Ibu-ibu! Coba lihat siapa yang dari tadi sok jadi detektif.','Kalian mau keluarin aku? Silakan. Tapi besok kas kalian tetap hilang.','Aku difitnah! Ini semua sudah direncanakan!'],
@@ -590,7 +592,7 @@ function compose(p,core,vars){
   if(!p.bot||PLAIN.has(core))return line;
   const v=VOICE[p.bot][INTENT[core]||'neutral'];
   let out=line;
-  if(v.o.length&&rnd()<.4&&!INTERJ.test(out)){const o=pickR(v.o);out=o+' '+(/,$/.test(o)?lowerFirst(out):out);}
+  if(v.o.length&&rnd()<.4&&!INTERJ.test(out)){const o=pickR(v.o);out=o+' '+(/[.…!?:]$/.test(o)?out:lowerFirst(out));}
   if(v.c.length&&rnd()<.35&&!/[?]$/.test(out)&&!/\p{Extended_Pictographic}$/u.test(out))out=out+' '+pickR(v.c);
   if(p.mood>=2&&rnd()<.4)out=out.replace(/[.…]$/,'!');
   if(p.mood>=3&&rnd()<.2&&out.length<70&&(INTENT[core]==='deny'||INTENT[core]==='accuse'))out=out.toUpperCase();
@@ -616,7 +618,300 @@ function evidence(sp,t){
   if(pl(t).salahSus)facts.push('kemarin dia salah kirim pesan soal transfer uang');
   return facts.length?pickR(facts):null;
 }
+/* ================= NALAR: penalaran antar tokoh + tata bahasa generatif =================
+   Bot menyusun deduksi dari fakta permainan, lalu kalimat dibangun dari makna:
+   tingkat keyakinan, alasan yang benar-benar dimiliki, penghubung, kesimpulan, gaya bicara. */
+const o=(...a)=>pickR(a);
+const cap=s=>s?s.charAt(0).toUpperCase()+s.slice(1):s;
+function listNames(arr){return arr.length<=1?(arr[0]||''):arr.slice(0,-1).join(', ')+' dan '+arr[arr.length-1];}
+const firstName=q=>q.name.replace(/^Bu\s+(Hajjah\s+)?/,'');
+/* Sapaan menyesuaikan pembicara */
+function addr(sp,q){
+  if(!q)return '';
+  if(q.human&&G.mode!=='pass')return q.name;
+  const f=firstName(q);
+  if(sp&&sp.bot==='sosialita'&&rnd()<.45)return 'Jeng '+f;
+  if(sp&&sp.bot==='tegas'&&rnd()<.25)return f;
+  if(/Hajjah/.test(q.name))return o('Bu Hajjah '+f,'Bu Hj. '+f,'Bu '+f);
+  return q.name;
+}
+const lookOf=q=>q.hair?'rambut terurai':`kerudung ${COLOR_NAME[q.hijab]||'gelap'}`;
+const ALIBI=['nonton sinetron sampai ketiduran','jagain anak yang lagi demam','masak rendang buat besok','telponan sama ibuku di kampung','nyetrika seragam anak','ketiduran habis tahlilan','nemenin suami ronda','nonton bola sama suami','ngerjain pesanan kue'];
+/* Alibi tetap sama untuk malam yang sama, kecuali bandar yang kadang lupa kebohongannya */
+function alibiFor(p,day){
+  p.alibi=p.alibi||{};
+  if(!p.alibi[day]){G.alibiUsed=G.alibiUsed||{};const used=G.alibiUsed[day]=G.alibiUsed[day]||new Set();const free=ALIBI.filter(a=>!used.has(a));const a=pickR(free.length?free:ALIBI);used.add(a);p.alibi[day]=[a];return a;}
+  if(p.role==='bandar'&&p.alibi[day].length===1&&rnd()<.35){let a;do a=pickR(ALIBI);while(a===p.alibi[day][0]);p.alibi[day].push(a);return a;}
+  return p.alibi[day][p.alibi[day].length-1];
+}
+const ROLE_LOW={bandar:'bandar',bendahara:'Bendahara',ketua:'Bu RT',gosip:'Ratu Gosip',warga:'warga biasa'};
+
+/* ---------- deduksi ---------- */
+function deductions(v){
+  const out=[],me=v.id;
+  const aliveOther=id=>id!==me&&pl(id).alive;
+  for(const m of G.allMsgs){
+    // klaim Bendahara yang terbukti salah setelah peran dibuka
+    if(m.type==='claimBend'&&m.target!=null&&!pl(m.target).alive&&aliveOther(m.from)){
+      const truth=pl(m.target).role==='bandar';
+      if(truth!==m.value)out.push({kind:'liar',target:m.from,strength:.95,about:m.target,said:m.value,role:pl(m.target).role,day:m.day});
+    }
+    // membela bandar yang sudah terbukti
+    if(m.type==='defend'&&m.target!=null&&!pl(m.target).alive&&pl(m.target).role==='bandar'&&aliveOther(m.from))
+      out.push({kind:'defendedBandar',target:m.from,strength:.6,about:m.target});
+    // laporan orang lain bahwa seseorang keluar rumah
+    if(m.type==='report'&&m.value&&m.target!=null&&aliveOther(m.target)&&m.from!==me)
+      out.push({kind:'seenOut',target:m.target,by:m.from,strength:.35});
+  }
+  // dua orang mengaku Bendahara
+  const bc=G.bendClaimers.filter(x=>aliveOther(x));
+  if(v.role==='bendahara'&&!v.human){for(const x of bc)out.push({kind:'fakeBend',target:x,strength:.98});}
+  else if(bc.length>=2){
+    const liars=new Set(out.filter(d=>d.kind==='liar').map(d=>d.target));
+    const [a,b]=bc.slice().sort((x,y)=>(liars.has(y)-liars.has(x))||(prob(v,y)-prob(v,x)));
+    out.push({kind:'twoClaims',target:a,other:b,strength:.55});
+  }
+  // petunjuk sandal dan CCTV: kandidat dikurangi yang sudah pasti bersih
+  for(const nw of G.newsLog){
+    if(nw.type!=='sandal'&&nw.type!=='cctv')continue;
+    const match=q=>nw.type==='sandal'?q.sandal===nw.color:lookOf(q)===nw.look;
+    const cands=alive().filter(q=>q.id!==me&&match(q));
+    if(!cands.length)continue;
+    const elim=cands.filter(q=>prob(v,q.id)<.06),rest=cands.filter(q=>prob(v,q.id)>=.06);
+    const what=nw.type==='sandal'?`sandal ${nw.color}`:nw.look;
+    if(rest.length===1&&cands.length>1)out.push({kind:'deduce',target:rest[0].id,strength:.85,what,cands:cands.map(q=>q.id),elim:elim.map(q=>q.id),src:nw.type});
+    else for(const q of rest)out.push({kind:'clue',target:q.id,strength:.4,what,others:cands.filter(x=>x!==q).map(x=>x.id),src:nw.type});
+  }
+  // pengetahuan sendiri dari malam
+  for(const k of v.knowledge||[]){
+    if(!pl(k.target).alive||k.target===me)continue;
+    if(k.type==='audit')out.push({kind:'ownAudit',target:k.target,strength:k.value?1:-1,value:k.value,day:k.day});
+    if(k.type==='intip')out.push({kind:'ownIntip',target:k.target,strength:k.value?.55:-.4,value:k.value,day:k.day});
+    if(k.type==='gosip')out.push({kind:'ownGosip',target:k.target,strength:k.value?.45:-.3,value:k.value,day:k.day});
+  }
+  // pola voting: memilih orang yang ternyata bersih
+  const badVotes={};
+  for(const vt of G.votes)for(const [voter,x] of vt.votes)if(vt.kicked===x&&pl(x).role!=='bandar'&&aliveOther(voter))(badVotes[voter]=badVotes[voter]||[]).push(x);
+  for(const [voter,xs] of Object.entries(badVotes))out.push({kind:'votePattern',target:+voter,strength:.3+.15*xs.length,victims:xs});
+  // alibi yang berubah untuk malam yang sama
+  for(const p of alive())if(p.id!==me&&p.alibi)for(const [d,a] of Object.entries(p.alibi))if(a.length>1&&p.alibiSaid&&p.alibiSaid[d]>1)out.push({kind:'alibi',target:p.id,strength:.75,a1:a[0],a2:a[1]});
+  // yang menyerang aku berkali-kali
+  const atk={};for(const m of G.msgs)if(m.target===me&&(m.type==='accuse'||(m.type==='claimBend'&&m.value))&&aliveOther(m.from))atk[m.from]=(atk[m.from]||0)+1;
+  for(const [a,c] of Object.entries(atk))if(c>=2)out.push({kind:'attacker',target:+a,strength:.3,count:c});
+  // kabar dan salah kirim
+  for(const nw of G.newsLog)if(nw.type==='fitnah'&&aliveOther(nw.target))out.push({kind:'rumor',target:nw.target,strength:.2,text:nw.text});
+  for(const p of alive())if(p.id!==me&&p.salahSus)out.push({kind:'salah',target:p.id,strength:.35});
+  return out.sort((a,b)=>b.strength-a.strength);
+}
+const about=(v,t)=>deductions(v).filter(d=>d.target===t);
+/* Alasan terkuat untuk menuduh t, dari sudut pandang pembicara. Bandar memakai fakta publik saja. */
+function bestReason(sp,t,positive){
+  let ds=about(sp,t);
+  if(sp.role==='bandar')ds=ds.filter(d=>!['ownAudit','ownIntip','ownGosip','fakeBend'].includes(d.kind));
+  ds=ds.filter(d=>positive?d.strength>0:d.strength<0);
+  if(!ds.length)return null;
+  const used=G.reasonUsed||{};
+  const fresh=ds.filter(d=>used[reasonKey(d)]==null||used[reasonKey(d)]===sp.id);
+  if(fresh.length&&rnd()<.7)return rnd()<.75?fresh[0]:pickR(fresh);
+  return rnd()<.75?ds[0]:pickR(ds);
+}
+const VERIFIABLE={liar:3,deduce:1.6,alibi:2,defendedBandar:1.5,votePattern:1.25};
+
+/* ---------- verbalisasi alasan ---------- */
+const reasonKey=r=>r.kind+':'+r.target+':'+(r.about??r.what??r.by??r.text??'');
+function reasonText(sp,r){
+  G.reasonUsed=G.reasonUsed||{};
+  const key=reasonKey(r),first=G.reasonUsed[key];
+  if(first!=null&&first!==sp.id&&pl(first).alive){
+    const F=addr(sp,pl(first));
+    return o(`seperti kata ${F} tadi`,`sama kayak yang dibilang ${F}`,`${F} tadi sudah bilang alasannya`,`aku setuju sama alasan ${F} tadi`);
+  }
+  if(first==null)G.reasonUsed[key]=sp.id;
+  return reasonTextRaw(sp,r);
+}
+function reasonTextRaw(sp,r){
+  const T=addr(sp,pl(r.target));
+  const when=d=>d===G.day?o('tadi','barusan'):o('kemarin','pas pertemuan '+d);
+  switch(r.kind){
+    case 'liar':{
+      const B=addr(sp,pl(r.about)),roleTxt=r.role==='bandar'?o('memang bandar','ternyata bandar beneran'):o('ternyata cuma ','nyatanya ')+ROLE_LOW[r.role];
+      return r.said?`${when(r.day)} ${T} ${o('ngaku Bendahara terus nuduh','sok jadi Bendahara dan bilang','ngaku-ngaku Bendahara, katanya')} ${B} bandar, ${o('padahal','eh','nyatanya')} ${B} ${roleTxt}`
+                   :`${when(r.day)} ${T} ${o('ngaku Bendahara dan bilang','sok jadi Bendahara, katanya')} ${B} bersih, ${o('padahal','eh','nyatanya')} ${B} ${o('ternyata bandar','bandar beneran')}`;}
+    case 'fakeBend':return `${o('Bendahara itu aku','yang Bendahara asli itu aku')}, jadi ${T} ${o('pasti bohong','jelas ngaku-ngaku','bohong besar')}`;
+    case 'twoClaims':return `${T} dan ${addr(sp,pl(r.other))} sama-sama ngaku Bendahara, ${o('padahal Bendahara cuma satu','dan salah satunya pasti bohong')}`;
+    case 'deduce':{
+      const c=listNames(r.cands.map(x=>addr(sp,pl(x))));
+      const conn=o('jadi tinggal','berarti tinggal','sisanya cuma');
+      const e=r.elim.length?`${listNames(r.elim.map(x=>addr(sp,pl(x))))} ${o('sudah jelas bersih','sudah terbukti aman')}, ${conn}`:cap(conn);
+      return `yang ${r.src==='sandal'?'pakai ':'ber-'}${r.what} cuma ${c}. ${e} ${T}`;}
+    case 'clue':return r.src==='sandal'?`${T} ${o('pakai '+r.what,'sandalnya '+r.what.replace('sandal ','warna '))}, ${o('sama kayak yang dilihat dekat kotak kas','cocok sama petunjuk semalam')}${r.others.length?o('',`, walaupun ${listNames(r.others.map(x=>addr(sp,pl(x))))} juga`):''}`
+                                     :`di CCTV kelihatan orang ber-${r.what}, dan itu cocok sama ${T}`;
+    case 'ownAudit':return r.value?`semalam aku audit ${T}, ${o('hasilnya bandar','buku kasnya berantakan','ketahuan nilep kas')}`:`semalam aku audit ${T}, ${o('bersih','catatannya rapi')}`;
+    case 'ownIntip':return r.value?`semalam aku intip, ${T} keluar rumah ${o('jam 1an','tengah malam','pas semua sudah tidur')}`:`semalam aku intip rumah ${T}, ${o('lampunya mati dari jam 9','gak kelihatan keluar')}`;
+    case 'ownGosip':return r.value?`${o('sumberku','tetangga sebelah','grup sebelah')} bilang ${T} ${o('lagi banyak uang','sering transfer diam-diam','gelagatnya mencurigakan')}`:`${o('sumberku','kabar yang aku dengar')} bilang ${T} ${o('biasa-biasa aja','gak ada apa-apa')}`;
+    case 'votePattern':return `${T} ${o('ikut ngeluarin','ikut milih')} ${listNames(r.victims.map(x=>addr(sp,pl(x))))} yang ternyata bersih`;
+    case 'defendedBandar':return `${T} ${o('kemarin belain','sempat bela-belain')} ${addr(sp,pl(r.about))} yang ternyata bandar`;
+    case 'alibi':return `${T} ${o('tadi bilang','katanya')} semalam ${r.a1}, ${o('terus sekarang bilang','eh sekarang ganti jadi')} ${r.a2}. ${o('Mana yang bener?','Kok beda?')}`;
+    case 'attacker':return `${T} ${o('dari tadi nyerang aku terus','sudah '+r.count+' kali nuduh aku')}`;
+    case 'seenOut':return `${addr(sp,pl(r.by))} ${o('lihat','bilang lihat')} ${T} keluar rumah semalam`;
+    case 'rumor':return /^katanya /.test(r.text)?`katanya ${T} ${r.text.replace(/^katanya /,'')}`:`kabarnya ${T} ${r.text}`;
+    case 'salah':return `${T} ${o('tadi','kemarin')} salah kirim pesan soal uang`;
+  }
+  return '';
+}
+
+/* ---------- penyusun kalimat ---------- */
+const PARTICLE={julid:['lho','sih','deh'],polos:['ya','kan'],bijak:[],sosialita:['sih','deh'],pendiam:[],kepo:['nih','lho'],baper:['ya'],tegas:[]};
+function particle(sp,txt){
+  const ps=sp&&sp.bot?PARTICLE[sp.bot]:[];
+  if(!ps.length||rnd()>.35)return txt;
+  return txt.replace(/([.!?])$/,` ${pickR(ps)}$1`);
+}
+function finish(sp,txt,intent){
+  let t=txt.replace(/\s+/g,' ').replace(/ ([,.!?])/g,'$1').trim();
+  const emojiEnd=/\p{Extended_Pictographic}$/u.test(t);
+  if(!emojiEnd&&!/[.!?…)]$/.test(t))t+='.';
+  if(!emojiEnd)t=particle(sp,t);
+  if(sp&&sp.bot){
+    const v=VOICE[sp.bot][intent]||VOICE[sp.bot].neutral;
+    if(v.o.length&&rnd()<.25&&!INTERJ.test(t)){const op=pickR(v.o);t=op+' '+(/[.…!?:]$/.test(op)?t:lowerFirst(t));}
+    if(v.c.length&&rnd()<.2&&!/\p{Extended_Pictographic}$/u.test(t))t+=' '+pickR(v.c);
+    if(sp.mood>=2&&rnd()<.35)t=t.replace(/\.$/,'!');
+    if(sp.mood>=3&&rnd()<.15&&t.length<70&&(intent==='deny'||intent==='accuse'))t=t.toUpperCase();
+  }
+  if(G.used.has(t))t=t.replace(/[.!]$/,o('!','…','.'));
+  G.used.add(t);
+  return t;
+}
+function confidenceOf(sp,t){return sp.role==='bandar'?.5+rnd()*.35:prob(sp,t);}
+function genAccuse(sp,t,why){
+  const T=addr(sp,pl(t)),c=confidenceOf(sp,t);
+  const lvl=c>.88?3:c>.68?2:c>.48?1:0;
+  const head=[
+    [`aku agak curiga sama ${T}`,`${T} bikin aku penasaran`,`kok aku ngerasa ${T} agak aneh`,`aku belum yakin, tapi ${T} perlu diperhatiin`],
+    [`aku curiga sama ${T}`,`aku gak percaya sama ${T}`,`${T} ada apa-apanya`,`menurutku ${T} patut dicurigai`],
+    [`aku makin yakin ${T} orangnya`,`hampir pasti ${T} bandarnya`,`${T} paling patut dicurigai`,`feeling-ku kuat banget ke ${T}`],
+    [`${T} bandarnya, aku yakin`,`gak ada keraguan lagi, ${T} pelakunya`,`sudah jelas, ${T} orangnya`,`aku yakin seratus persen sama ${T}`]][lvl];
+  const core=pickR(head),rs=why?reasonText(sp,why):null;
+  let txt;
+  const form=ri(4);
+  if(rs&&form===0)txt=`${cap(core)}, ${o('soalnya','karena','buktinya')} ${rs}.`;
+  else if(rs&&form===1)txt=`${o('Coba pikir','Ingat gak','Perhatiin deh','Gini ya')}: ${rs}. ${cap(o('jadi','berarti','makanya'))} ${core}.`;
+  else if(rs&&form===2&&(sp.bot==='kepo'||sp.bot==='tegas'||lvl>=1))txt=`${T}, ${o('bisa jelasin','tolong jelasin','gimana ceritanya')}? ${cap(rs)}.`;
+  else if(rs)txt=`${cap(rs)}. ${cap(core)}.`;
+  else txt=`${cap(core)}. ${o('Gerak-geriknya aneh.','Feeling aja sih.','Dari tadi jawabannya muter-muter.','Belum ada bukti, tapi aku ngerasa.','')}`;
+  if(lvl>=2&&rnd()<.4)txt+=' '+o(`Hari ini kita keluarin ${T}.`,`Aku pilih ${T}.`,'Jangan sampai dia lolos.');
+  return finish(sp,txt,'accuse');
+}
+function genDefend(sp,t,why){
+  const T=addr(sp,pl(t));
+  const rs=why?reasonText(sp,why):null;
+  const core=o(`aku yakin ${T} bukan bandar`,`${T} bersih menurutku`,`jangan buru-buru nuduh ${T}`,`aku percaya sama ${T}`);
+  let txt=rs?o(`${cap(core)}, soalnya ${rs}.`,`${cap(rs)}. Jadi ${core}.`):`${cap(core)}. ${o('Belum ada bukti apa-apa soal dia.','Dari awal dia ikut bantu nyari bandar.','Yang nuduh dia justru perlu dicek juga.','')}`;
+  return finish(sp,txt,'defend');
+}
+function genDeny(sp,accuser,why){
+  const A=accuser!=null?addr(sp,pl(accuser)):null;
+  const ex=o('Lho, kok aku?','Astagfirullah!','Hah? Aku?','Ya ampun…','Sebentar,','Aku?!');
+  const core=o('aku bukan bandar','aku gak pernah ambil uang kas','tuduhan itu salah besar','aku bersih');
+  const alibi=`semalam aku ${alibiFor(sp,G.day)}`;
+  sp.alibiSaid=sp.alibiSaid||{};sp.alibiSaid[G.day]=(sp.alibiSaid[G.day]||0)+1;
+  const parts=[cap(core)+'.',cap(alibi)+'.'];
+  // jawab isi tuduhannya
+  const kind=why?why.kind:null;
+  if(kind==='ownIntip'||kind==='seenOut'||(why&&why.type==='report')){
+    parts[1]=cap(o('iya aku memang keluar, tapi cuma','aku keluar sebentar,'))+' '+o('beli obat buat anak di apotek','ke warung beli gas','jemput suami pulang lembur','antar tetangga ke bidan')+'.';
+  }else if(kind==='rumor'||(why&&why.type==='fitnah')){
+    parts.push(o('Kabar itu fitnah, ada yang sengaja nyebar!','Itu gosip murahan. Aku bisa jelasin semuanya.','Siapa sih yang nyebar kabar begitu?'));
+  }else if(kind==='salah'){
+    parts.push(o('Pesan itu buat suamiku, soal uang belanja!','Itu salah kirim biasa, soal arisan keluarga.'));
+  }else if(kind==='votePattern'){
+    parts.push(o('Semua orang juga ikut salah pilih kemarin.','Kemarin kita semua kena tipu, bukan cuma aku.'));
+  }
+  // bantahan khusus untuk petunjuk sandal: tunjuk yang lain yang juga cocok
+  if(why&&(why.kind==='clue'||why.kind==='deduce')){
+    const others=(why.others||why.cands||[]).filter(x=>x!==sp.id&&pl(x).alive);
+    if(others.length)parts.push(`${why.src==='sandal'?'Sandalku memang '+why.what.replace('sandal ',''):'Aku memang '+why.what}, tapi ${listNames(others.map(x=>addr(sp,pl(x))))} juga!`);
+  }
+  if(A&&(rnd()<.35+.15*grudge(sp.id,accuser)||sp.role==='bandar')){
+    const r=bestReason(sp,accuser,true);
+    const n=accuser!=null?G.msgs.filter(x=>x.from===accuser&&x.target===sp.id).length:0;
+    parts.push(r?`Justru ${reasonText(sp,r)}.`:`${A} ${n>=2?o('dari tadi nyerang aku terus','sudah berkali-kali nuduh aku'):o('kok tiba-tiba nuduh aku','harusnya kasih bukti dulu','sendiri juga belum jelas posisinya')}.`);
+  }
+  const body=[...shuffle(parts.slice(0,2)),...parts.slice(2)];
+  if(/,$/.test(ex))body[0]=lowerFirst(body[0]);
+  return finish(sp,[ex,...body].join(' '),'deny');
+}
+function genClaim(sp,m){
+  const T=addr(sp,pl(m.target));
+  if(m.type==='claimBend'){
+    const pre=o('Ibu-ibu, aku Bendahara.','Aku harus jujur: aku Bendahara.','Aku Bendahara ya.','Oke, aku buka kartu. Aku Bendahara.');
+    const res=m.value?o(`Semalam aku audit ${T}, hasilnya BANDAR!`,`Buku kas ${T} berantakan. Dia bandarnya!`,`${T} ketahuan nilep kas!`)
+                     :o(`Semalam aku audit ${T}, bersih.`,`${T} aman, catatannya rapi.`,`${T} bukan bandar, sudah aku cek.`);
+    return finish(sp,pre+' '+res,'claim');
+  }
+  if(m.type==='claimGosip')return finish(sp,m.value?`${cap(o('aku dengar dari tetangga','kabar dari grup sebelah','sumberku bilang'))}, ${T} ${o('lagi banyak uang','mencurigakan banget','sering transfer diam-diam')} 🤫`
+                                                        :`${cap(o('aku sudah cari kabar soal','sumberku sudah ngecek'))} ${T}, ${o('biasa-biasa aja','gak ada apa-apa')}.`,m.value?'accuse':'defend');
+  if(m.type==='report')return finish(sp,m.value?`Semalam aku intip dari jendela, ${T} keluar rumah ${o('jam 1an','tengah malam')}. ${o('Ngapain ya?','Mau ke mana coba?','')}`
+                                                 :`Semalam aku intip rumah ${T}, ${o('lampunya mati dari jam 9','gak kelihatan keluar')}.`,m.value?'accuse':'defend');
+  return '';
+}
+function genReveal(sp,k){
+  const T=addr(sp,pl(k.target));
+  const lead=o('Oke, aku terpaksa buka kartu.','Karena aku dipojokin, aku jujur aja.','Aku gak mau dikeluarin, jadi aku ngaku:');
+  if(sp.role==='ketua')return finish(sp,`${lead} Aku Bu RT. Semalam aku jaga ${T}${k.value?', dan memang ada yang mau ngajak dia ngerumpi':''}.`,'deny');
+  if(sp.role==='gosip')return finish(sp,`${lead} Aku Ratu Gosip. Kabar soal ${T}: ${k.value?'mencurigakan':'biasa-biasa aja'}.`,'deny');
+  if(sp.role==='warga')return finish(sp,`${lead} Aku warga biasa, semalam aku intip rumah ${T}, dan dia ${k.value?'keluar rumah':'gak kelihatan keluar'}.`,'deny');
+  return '';
+}
+function genAgree(sp,t,x,why){
+  const X=addr(sp,pl(x)),T=addr(sp,pl(t)),rs=why?reasonText(sp,why):null;
+  return finish(sp,rs?`${o('Setuju sama','Nah, bener kata','Aku sependapat sama')} ${X}. ${cap(rs)}.`:`${o('Setuju sama','Bener kata')} ${X}, ${T} ${o('memang mencurigakan','perlu jelasin')}.`,'accuse');
+}
+function genDisagree(sp,t,x,why){
+  const X=addr(sp,pl(x)),T=addr(sp,pl(t)),rs=why?reasonText(sp,why):null;
+  return finish(sp,rs?`${o('Tunggu dulu','Hmm, aku gak setuju sama','Jangan buru-buru')} ${X}. ${cap(rs)}.`:`${o('Aku gak sependapat sama','Tunggu dulu')} ${X}. ${T} ${o('belum tentu bandar','kayaknya bukan')}.`,'defend');
+}
+function genAnswer(sp,t,why){
+  const T=addr(sp,pl(t)),c=confidenceOf(sp,t),rs=why?reasonText(sp,why):null;
+  const head=c>.65?o(`Kalau aku sih yakin ${T}`,`Menurutku ${T}, jelas`):o(`Belum yakin, tapi kalau harus milih, ${T}`,`Mungkin ${T}`);
+  const filler=o('Gerak-geriknya dari tadi aneh.','Jawabannya selalu muter-muter.','Dia paling banyak ngeles.','Feeling-ku sih ke sana.');
+  return finish(sp,rs?`${head}. ${cap(rs)}.`:`${head}. ${filler}`,'accuse');
+}
+function genShort(sp,kind,t){
+  const T=t!=null?addr(sp,pl(t)):'';
+  const L={
+    react:[o('Wah serius','Masa sih','Hmm, bisa jadi','Oke, aku catat')+o('?','.','…')],
+    dunno:[o('Aku belum tahu, masih nyimak.','Belum ada bukti kuat.','Aku juga bingung.')],
+    thanks:[`${o('Makasih','Terima kasih')} ${T}, ${o('akhirnya ada yang percaya','kamu memang baik')}.`],
+    hurt:[o('Kok kasar sih?','Gak usah ngegas dong.','Santai, kita sama-sama korban di sini.')],
+    calm:[o('Sabar, kita cari bareng-bareng.','Jangan emosi dulu.','Tarik napas dulu, Ibu-ibu.')],
+    comfort:[`${o('Sabar ya','Peluk jauh buat')} ${T}${o(', kalau bersih pasti ketahuan.',' 🤗','.')}`]
+  };
+  return finish(sp,pickR(L[kind]||L.react),kind==='hurt'?'deny':'neutral');
+}
+/* Teks generatif untuk pesan non-skenario; mengembalikan null kalau pesan memakai kalimat skenario */
+function genText(m){
+  const sp=pl(m.from);
+  if(!sp.bot)return null;
+  const core=m.core;
+  if(m.reveal)return genReveal(sp,m.reveal);
+  if(!core||core==='accuseE'){
+    if(m.type==='accuse')return genAccuse(sp,m.target,m.why||null);
+    if(m.type==='defend')return genDefend(sp,m.target,m.why||null);
+    if(m.type==='deny'){const rt=m.replyTo;return genDeny(sp,m.back!=null?m.back:(rt&&rt.from),rt?(rt.why||(rt.type==='report'?{type:'report'}:null)):null);}
+    if(m.type==='claimBend'||m.type==='claimGosip'||m.type==='report')return genClaim(sp,m);
+  }
+  if(core==='agree')return genAgree(sp,m.target,m.x,m.why);
+  if(core==='disagree')return genDisagree(sp,m.target,m.x,m.why);
+  if(core==='answer')return genAnswer(sp,m.target,m.why);
+  if(core==='denyBack')return genDeny(sp,m.target,null);
+  if(['react','dunno','thanks','hurt','calm','comfort'].includes(core))return genShort(sp,core,m.target);
+  return null;
+}
+
 function textFor(m){
+  const g=genText(m);if(g)return g;
   const p=pl(m.from),vars={t:m.target!=null?pl(m.target).name:'',x:m.x!=null?pl(m.x).name:'',e:m.e||''};
   let core=m.core;
   if(!core)switch(m.type){
@@ -706,6 +1001,7 @@ function botSpeakRaw(slot){
     const hard=accused.find(m=>m.type==='claimBend');
     if(hard&&p.role==='bendahara'&&p.audited&&p.audited.length){const t=p.audited[p.audited.length-1];return{from:p.id,type:'claimBend',target:t,value:isBandar(t)};}
     const back=accused[0].from;
+    const rv=pressuredReveal(p,{from:p.id,replyTo:accused[accused.length-1]});if(rv)return rv;
     return{from:p.id,type:'deny',back:rnd()<.35+.15*grudge(p.id,back)?back:null,replyTo:accused[accused.length-1]};
   }
   const bestie=G.besties&&G.besties.includes(p.id)&&!G.betrayed?G.besties.find(x=>x!==p.id):null;
@@ -721,9 +1017,9 @@ function botSpeakRaw(slot){
     else if(r.type==='ngerumpi')return{from:p.id,type:'ngerumpi'};
   }
   const top=pickAccuseTarget(p);
-  if(top&&top.s>.42&&rnd()<.85)return{from:p.id,type:'accuse',target:top.q.id,e:rnd()<.6?evidence(p,top.q.id):null};
+  if(top&&top.s>.42&&rnd()<.85)return{from:p.id,type:'accuse',target:top.q.id,why:bestReason(p,top.q.id,true)};
   const low=lowSuspect(p);
-  if(low&&rnd()<.3)return{from:p.id,type:'defend',target:low.id};
+  if(low&&rnd()<.3)return{from:p.id,type:'defend',target:low.id,why:bestReason(p,low.id,false)};
   return{from:p.id,type:'flavor'};
 }
 function bandarSpeak(p,accused,per){
@@ -755,8 +1051,8 @@ function bandarSpeak(p,accused,per){
     return{from:p.id,type:'claimBend',target:G.scape,value:true};
   }
   if(st==='diam')return rnd()<.5?{from:p.id,type:'flavor'}:{from:p.id,type:'defend',target:pickR(inn).id};
-  if(st==='drama'&&rnd()<.4){const t=pickR(inn);return{from:p.id,type:'accuse',target:t.id,e:evidence(p,t.id)};}
-  if(G.scape!=null&&rnd()<.6)return{from:p.id,type:'accuse',target:G.scape,e:rnd()<.5?evidence(p,G.scape):null};
+  if(st==='drama'&&rnd()<.4){const t=pickR(inn);return{from:p.id,type:'accuse',target:t.id,why:bestReason(p,t.id,true)};}
+  if(G.scape!=null&&rnd()<.6)return{from:p.id,type:'accuse',target:G.scape,why:bestReason(p,G.scape,true)};
   return{from:p.id,type:'flavor'};
 }
 function sysEvent(html,apply,heat){return{sys:true,html,apply,heatType:heat||'shot'};}
@@ -777,7 +1073,7 @@ function dramaSpeak(s){
     const who=rnd()<.6?pickR(b):pickR(alive());
     const look=who.hair?'rambut terurai':`kerudung ${COLOR_NAME[who.hijab]||'gelap'}`;
     return sysEvent(`<div class="sys news">📹 Rekaman CCTV warung Bu Tini jam 1 malam: terlihat orang ber-${esc(look)} lewat sambil bawa amplop cokelat.</div>`,
-      ()=>{for(const v of alive()){if(v.human||v.role==='bandar')continue;for(const q of alive())if((q.hair?'rambut terurai':`kerudung ${COLOR_NAME[q.hijab]||'gelap'}`)===look)mulBelief(v,q.id,TUNE.cctvLR);}},'shot');
+      ()=>{G.newsLog.push({type:'cctv',look,day:G.day});for(const v of alive()){if(v.human||v.role==='bandar')continue;for(const q of alive())if(lookOf(q)===look)mulBelief(v,q.id,TUNE.cctvLR);}},'shot');
   }
   if(s.drama==='paket'){
     const b=alive().filter(p=>p.role==='bandar');
@@ -844,8 +1140,8 @@ function sidangSpeak(s){
   }
   if(s.sidang==='saksi'){
     const t=s.target!=null&&pl(s.target).alive?s.target:null;if(t==null)return null;
-    const e=evidence(p,t);
-    return{from:p.id,type:'accuse',target:t,core:e?'bongkar':'bongkarPolos',e};
+    const why=bestReason(p,t,true),e=why?reasonText(p,why):null;
+    return{from:p.id,type:'accuse',target:t,core:e?'bongkar':'bongkarPolos',e,why};
   }
   return null;
 }
@@ -856,24 +1152,37 @@ function followUps(m){
   const t=m.target!=null?pl(m.target):null;
   const hostile=m.type==='accuse'||((m.type==='claimBend'||m.type==='claimGosip'||m.type==='report')&&m.value);
   const scripted=m.core&&/^(debate|khianat|sindir|tim|bongkar)/.test(m.core);
-  if(t&&!t.human&&t.alive&&hostile&&!scripted&&(t.replies||0)<2&&rnd()<.85)out.push({respond:t.id,to:m});
-  if(m.type==='claimBend'){
+  const pingPong=m.replyTo&&m.replyTo.from===m.target;
+  if(t&&!t.human&&t.alive&&hostile&&!scripted&&!pingPong&&(t.replies||0)<2&&rnd()<.85)out.push({respond:t.id,to:m});
+  if(m.type==='claimBend'&&!pingPong){
     const real=alive().find(q=>q.role==='bendahara'&&!q.human&&q.id!==m.from&&q.counterDay!==G.day);
     if(real&&!(t&&t.id===real.id&&out.length))out.push({counter:real.id,to:m});
   }
   return out;
+}
+function pressuredReveal(p,base){
+  if(p.role==='bandar'||p.revealed||p.human)return null;
+  if(!(pubSusp(p.id)>.45||accusedToday(p.id).length>=2))return null;
+  const k=(p.knowledge||[]).slice().reverse().find(x=>x.target!=null&&pl(x.target).alive&&x.target!==p.id);
+  if(!k)return null;
+  p.revealed=true;
+  if(p.role==='bendahara')return{...base,type:'claimBend',target:k.target,value:k.value};
+  if(p.role==='ketua')return{...base,type:'ketua',target:k.target,reveal:k};
+  if(p.role==='gosip')return{...base,type:'claimGosip',target:k.target,value:k.value,reveal:k};
+  return{...base,type:'report',target:k.target,value:k.value,reveal:k};
 }
 function botRespond(p,m){
   if(!p.alive)return null;
   p.replies=(p.replies||0)+1;
   m.answered=true;p.denied=true;
   const from=m.from,base={from:p.id,replyTo:m};
+  const rv=pressuredReveal(p,base);if(rv)return rv;
   if(m.type==='claimBend'&&m.value){
     if(p.role==='bendahara'){p.counterDay=G.day;const a=p.audited&&p.audited.length?p.audited[p.audited.length-1]:null;
       return a!=null&&a!==p.id?{...base,type:'claimBend',target:a,value:isBandar(a),core:isBandar(a)?'counterBendT':'counterBendF',x:from}:{...base,type:'accuse',target:from,core:'counterBendNo'};}
     if(p.role==='bandar'&&rnd()<Math.min(.95,PERS[p.bot].lie+TUNE.counterP))return{...base,type:'claimBend',target:from,value:true};
   }
-  if(p.role==='bandar'&&p.strategy==='drama'&&rnd()<.5){const e=evidence(p,from);return{...base,type:'accuse',target:from,e,core:e?'accuseE':'denyBack'};}
+  if(p.role==='bandar'&&p.strategy==='drama'&&rnd()<.5){const why=bestReason(p,from,true);return why?{...base,type:'accuse',target:from,why}:{...base,type:'accuse',target:from,core:'denyBack'};}
   return{...base,type:'deny',back:rnd()<.35+.15*grudge(p.id,from)?from:null};
 }
 function botCounter(p,m){
@@ -899,13 +1208,13 @@ function botReply(p,hm){
     return{from:p.id,type:'react'};
   }
   if(hm.type==='question'){
-    if(p.role==='bandar'){const t=G.scape!=null&&pl(G.scape).alive?G.scape:null;return t!=null?{from:p.id,type:'accuse',target:t,core:'answer'}:{from:p.id,type:'react',core:'dunno'};}
+    if(p.role==='bandar'){const t=G.scape!=null&&pl(G.scape).alive?G.scape:null;return t!=null?{from:p.id,type:'accuse',target:t,core:'answer',why:bestReason(p,t,true)}:{from:p.id,type:'react',core:'dunno'};}
     const top=pickAccuseTarget(p);
-    return top&&top.s>.35?{from:p.id,type:'accuse',target:top.q.id,core:'answer'}:{from:p.id,type:'react',core:'dunno'};
+    return top&&top.s>.35?{from:p.id,type:'accuse',target:top.q.id,core:'answer',why:bestReason(p,top.q.id,true)}:{from:p.id,type:'react',core:'dunno'};
   }
   if(hm.target!=null&&['accuse','claimBend','claimGosip','report'].includes(hm.type)&&hm.value!==false){
     const agree=p.role==='bandar'?!isBandar(hm.target):prob(p,hm.target)>.35;
-    return agree?{from:p.id,type:'accuse',target:hm.target,core:'agree',x:me.id}:{from:p.id,type:'defend',target:hm.target,core:'disagree',x:me.id};
+    return agree?{from:p.id,type:'accuse',target:hm.target,core:'agree',x:me.id,why:bestReason(p,hm.target,true)}:{from:p.id,type:'defend',target:hm.target,core:'disagree',x:me.id,why:bestReason(p,hm.target,false)};
   }
   if(hm.type==='defend'&&hm.target!=null){
     const agree=p.role==='bandar'?isBandar(hm.target)||rnd()<.5:prob(p,hm.target)<.4;
@@ -979,7 +1288,8 @@ function applyMsg(m){
       case 'report':
         if(t===v.id){if(wentOut(v)!==m.value)mulBelief(v,m.from,5);break;}
         mulBelief(v,t,m.value?1+.8*c:1/(1+2.5*c));break;
-      case 'accuse':if(t===v.id){mulBelief(v,m.from,1.6);break;}mulBelief(v,t,1+TUNE.accuseLR*c);break;
+      case 'accuse':if(t===v.id){mulBelief(v,m.from,1.6);break;}mulBelief(v,t,1+TUNE.accuseLR*c);
+        if(m.why&&VERIFIABLE[m.why.kind]&&m.why.target===t)mulBelief(v,t,VERIFIABLE[m.why.kind]);break;
       case 'defend':if(v.audited&&v.audited.includes(t)&&isBandar(t)){mulBelief(v,m.from,3);break;}mulBelief(v,t,1/(1+.35*c));break;
       case 'ketua':mulBelief(v,t,.7);mulBelief(v,m.from,.8);break;
       case 'deny':case 'swear':mulBelief(v,m.from,.93);break;
@@ -1051,7 +1361,7 @@ function simulate(games,n){
   R=Math.random;
   return{wargaWin:warga/games,avgDays:days/games};
 }
-window.ArisanSim={simulate,TUNE,debug:{get G(){return G;},newGame,followUps,parseHuman,compose,textFor,evidence,prob,pubSusp,alive,botNightAction,resolveNight,planSpeakers,botSpeak,applyMsg,botVote,tally}};
+window.ArisanSim={simulate,TUNE,debug:{get G(){return G;},newGame,followUps,deductions,genText,parseHuman,compose,textFor,evidence,prob,pubSusp,alive,botNightAction,resolveNight,planSpeakers,botSpeak,applyMsg,botVote,tally}};
 
 /* ================= layar ================= */
 let screen='home';
