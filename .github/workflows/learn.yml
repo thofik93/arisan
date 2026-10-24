@@ -28,7 +28,7 @@ jobs:
         run: |
           npm install --no-save playwright@1.61.0
           npx playwright install --with-deps chromium
-          node tests/nlu.mjs
+          node tests/nlu.mjs --all
       - name: Ajukan PR
         env:
           GH_TOKEN: ${{ github.token }}

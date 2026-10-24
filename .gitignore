@@ -9,3 +9,4 @@ learning-report.md
 server/.dev.vars
 server/.wrangler/
 server/node_modules/
+bench/results/
