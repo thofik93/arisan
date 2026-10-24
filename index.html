@@ -188,6 +188,10 @@ details[open] summary{margin-bottom:8px}
 .lastwords .bubble{background:var(--paper);color:var(--ink);border-radius:14px 14px 14px 4px;padding:9px 12px;font-weight:700}
 .suspense{font-family:var(--display);font-weight:800;font-size:1.6rem;text-align:center;color:var(--emas)}
 @media (prefers-reduced-motion:no-preference){.suspense{animation:pulse .5s ease-in-out infinite alternate}@keyframes pulse{from{opacity:.4}to{opacity:1}}}
+.sys.narr{background:transparent;color:var(--muted);font-style:italic;font-weight:600}
+.reacts{display:block;margin-top:4px;font-size:12px;font-weight:700;color:var(--ink-muted)}
+.vlog{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.vline{display:flex;gap:8px;align-items:center;font-size:14px;background:var(--maroon-deep);border:1px solid var(--line);border-radius:12px;padding:6px 10px}
 @media (prefers-reduced-motion:reduce){.toast,.opt .vbar i{transition:none}}
 </style>
 </head>
@@ -231,7 +235,8 @@ const sfx={
   gasp(){tone(330,.25,'sawtooth',.06);tone(250,.3,'sawtooth',.05,.12);},
   win(){[523,659,784,1046].forEach((f,i)=>tone(f,.18,'square',.06,i*.1));},
   lose(){[392,330,262].forEach((f,i)=>tone(f,.25,'triangle',.08,i*.15));},
-  shake(){for(let i=0;i<10;i++)tone(1200+Math.random()*800,.04,'square',.03,i*.08);}
+  shake(){for(let i=0;i<10;i++)tone(1200+Math.random()*800,.04,'square',.03,i*.08);},
+  jeng(){tone(233,.22,'sawtooth',.07);tone(220,.22,'sawtooth',.07,.24);tone(196,.6,'sawtooth',.08,.5);}
 };
 
 /* ================= data ================= */
@@ -281,7 +286,7 @@ const wentOut=p=>p.role==='bandar'||(GOES_OUT.has(p.role)&&G.night.actions[p.id]
 const SANDAL=[['merah','#e53935'],['hijau','#43a047'],['biru','#1e88e5'],['kuning','#fdd835']];
 const KAS_START=10e6;
 /* Angka penyeimbang, disetel lewat simulasi semua-bot (ArisanSim.simulate) */
-const TUNE={salahLR:1.35,shotLR:1.6,grudgeVote:.1,maxDay:3,twoBandarFrom:6,majority:false,sandalP:.25,sandalF:2.2,sandalSelfF:3,gosipAcc:.65,intipSeen:.6,intipQuiet:.45,
+const TUNE={cctvLR:1.3,paketLR:1.2,salahLR:1.35,shotLR:1.6,grudgeVote:.1,maxDay:3,twoBandarFrom:6,majority:false,sandalP:.25,sandalF:2.2,sandalSelfF:3,gosipAcc:.65,intipSeen:.6,intipQuiet:.45,
   bendLR:5,accuseLR:.5,fakeP:.22,counterP:0,bandwagon:.2,gullPow:1,auditClaimClean:.6};
 
 /* ---------- profil, kosmetik, pangkat ---------- */
@@ -380,6 +385,13 @@ function newGame(opts){
      night:{actions:{},results:{}},news:[],msgs:[],allMsgs:[],bendClaimers:[],votes:[],kicked:[],
      winner:null,reason:'',humanStats:{statements:0,votedBandar:0,votes:0,framed:false},token:0,
      used:new Set(),shotDone:new Set(),heat:0};
+  // alur sinetron: sepasang musuh bebuyutan dan sepasang besti di antara bot
+  const botIds=shuffle(players.filter(p=>!p.human).map(p=>p.id));
+  if(botIds.length>=4){
+    const [a,b,c,d]=botIds;G.rivals=[a,b];G.besties=[c,d];
+    bump(a,b,2);bump(b,a,2);bump(c,d,-2);bump(d,c,-2);
+    for(const [x,y,f] of [[a,b,1.4],[b,a,1.4],[c,d,.6],[d,c,.6]])mulBelief(pl(x),y,f);
+  }
   return G;
 }
 const pl=id=>G.players[id];
@@ -463,7 +475,7 @@ function resolveNight(){
       }
     }
   }
-  for(const p of G.players){p.saidInfo=false;p.denied=false;p.mood=Math.max(0,p.mood-1);p.ngambek=false;}
+  for(const p of G.players){p.saidInfo=false;p.denied=false;p.mood=Math.max(0,p.mood-1);p.ngambek=false;p.defendedBestie=false;}
   G.msgs=[];G.phase='day';G.heat=0;
 }
 const FITNAH=[
@@ -521,14 +533,38 @@ const CORE={
   debateA:['{t}, ngaku aja deh!','Kamu yang paling ngotot nuduh orang, {t}!','Dari kemarin kamu aneh, {t}. Jelasin!'],
   debateB:['Lho, kamu sendiri gimana {t}? Semalam ke mana?','Jangan balik nuduh aku, {t}!','Ngaca dulu deh, {t}.'],
   mediate:['Sudah, sudah! Kalian berdua kok ribut terus 😩','Ibu-ibu, ini grup arisan, bukan ring tinju!','Tenang… nanti kita voting saja.'],
+  sindirA:['Ada ya orang yang suka cari muka di grup ini 🙄','Duh, ada yang pura-pura polos padahal…','Bukan nyindir siapa-siapa ya, tapi ada yang dompetnya tiba-tiba tebel.'],
+  sindirB:['Kalau nyindir mending langsung sebut nama, {t}!','{t}, aku tahu itu buat aku. Gak usah muter-muter.','Hmm, ada yang kepanasan nih. Iya kan, {t}?'],
+  debate1:['{t}, dari pertemuan pertama kamu sudah aneh.','Aku gak suka cara kamu ngomong, {t}.','Jelasin dong {t}, kenapa kamu selalu ngeles?'],
+  debate2:['Ngaca dulu, {t}! Kamu sendiri gimana?','Kamu tuh dari dulu iri sama aku, {t}!','Jangan bawa-bawa masalah pribadi, {t}!'],
+  debate3:['CUKUP {t}! Aku sudah sabar dari tadi!','Kalau aku bandar, kamu apa, {t}? Ratu fitnah?!','Aku punya bukti, {t}. Mau aku bongkar di sini?'],
+  debate4:['Silakan bongkar! Aku gak takut, {t}!','Oke {t}, kita lihat siapa yang keluar duluan!','Kamu yang mulai ya, {t}. Ingat itu!'],
+  tim:['Aku tim {t} ya. Maaf.','Aku sih percaya sama {t}.','Kali ini aku di pihak {t}.'],
+  bestieDefend:['Jangan sentuh {t}! Dia besti-ku dari jaman TK!','Aku jamin {t} 100%. Kalau dia bandar, aku juga bandar!','Kalian kenapa sih nyerang {t} terus?! 😤'],
+  khianat:['Maaf {t}… kali ini aku gak bisa belain kamu 💔','{t}, aku sayang kamu, tapi buktinya makin jelas…','Jeng {t}, jujur sama aku. Kamu ya?'],
+  khianatReply:['{t}?! Kamu juga?! Kita kan besti! 😭','Tega kamu {t}… aku kira kamu beda.','Oke {t}. Aku catat ya. Sampai kapan pun aku ingat.'],
+  pembelaan:['Aku mau bicara sebelum voting. Aku bersih, dan aku siap dibuktikan!','Kalau kalian keluarin aku, bandar aslinya ketawa di belakang kita.','Aku cuma minta kalian pikir jernih. Lihat siapa yang paling ribut nuduh orang.','Demi anak-anakku, aku bukan bandar!'],
+  pembelaanBandar:['Aku bersih, Ibu-ibu! Coba lihat siapa yang dari tadi sok jadi detektif.','Kalian mau keluarin aku? Silakan. Tapi besok kas kalian tetap hilang.','Aku difitnah! Ini semua sudah direncanakan!'],
+  bongkar:['TUNGGU! Sebelum voting, aku mau bongkar sesuatu soal {t}. Ingat gak, {e}?','Sebentar! Aku diam dari tadi, tapi aku harus ngomong soal {t}: {e}.','Aku punya kartu as soal {t}. {e}. Pikirkan baik-baik!'],
+  bongkarPolos:['TUNGGU! Aku cuma mau bilang, feeling-ku kuat banget soal {t}.','Sebelum voting… aku mimpi buruk semalam, dan di mimpiku ada {t} 😰'],
+  pengakuan:['YA SUDAH! AKU NGAKU! …eh nggak deng 😭 Aku cuma capek dituduh terus!','Oke, oke, aku yang ambil! …bercanda! Aku cuma pengin kalian berhenti nuduh aku 😭'],
+  rapat:['Ibu-ibu, RAPAT DARURAT! Yang dari tadi diam, ayo ngomong sekarang!','Saya minta semua bicara. Jangan ada yang sembunyi!'],
+  dipaksa:['Iya iya… menurutku {t} agak aneh.','Aku dari tadi mikir, kayaknya {t} deh.','Maaf aku pendiam, tapi aku curiga {t}.'],
   lastInnocent:['Kalian salah orang. Nanti kalian nyesel… 💔','Ya sudah, aku keluar. Semoga kalian ketemu bandar aslinya.','Aku bersih! Ingat ya, aku sudah bilang dari awal!'],
   lastBandar:['Ya sudah, aku ngaku… uangnya sudah buat cicilan panci 😭','Hmph. Kalian beruntung kali ini.','Aku cuma pinjam kok, nanti juga dibalikin… mungkin.'],
   lastBluff:['Kalian salah besar!','Aku bersih, sumpah!','Kalian akan menyesal sudah ngeluarin aku!'],
   reactBandar:['TUH KAN! Aku sudah curiga dari awal! 😤','Astagfirullah, beneran dia…','Pantesan tasnya baru terus!'],
+  voteComment:['Maaf ya…','Sudah jelas.','Feeling aja.','Bismillah.','Aku yakin.','Semoga benar.','Gak ada pilihan lain.'],
   reactInnocent:['Ya Allah, salah orang 😭','Duh, maafin kami…','Kok bisa sih kita salah?!']
 };
 const SALAH_SUS=['Say, uangnya sudah aku pindah ke rekening baru ya 🤫','Jangan bilang siapa-siapa ya, yang kemarin itu rahasia kita berdua 🤐','Besok aku transfer bagianmu, aman kok 😉'];
 const SALAH_INN=['Mas, pulang kantor beliin martabak ya ❤️','Ma, besok ambil rapor jam 8 ya','Dek, jangan lupa matiin kompor!','Jeng, resep bolu pandannya jadi dikirim?'];
+const VOICE_SUS=['Iya, uangnya sudah aman. Jangan sampai ibu-ibu tahu ya…','Besok kita bagi dua, oke?','Aduh, hampir ketahuan tadi!'];
+const VOICE_INN=['Mas, gasnya habis, nanti beli ya.','Nak, PR-nya sudah dikerjain belum?','Ma, ayamnya digoreng jam berapa?'];
+const NARASI=['Malam itu, gang sunyi. Hanya terdengar pagar berderit pelan…','Jam 2 pagi, lampu rumah {t} masih menyala. Sedang apa?','Kucing tetangga mengeong keras, seperti melihat sesuatu di dekat kotak kas…','Di grup sebelah, nama {t} disebut-sebut. Entah kenapa.','Hujan rintik. Seseorang berjalan cepat sambil menunduk…'];
+const PAKET=['kulkas dua pintu','HP keluaran terbaru','set panci titanium','tas branded','kalung emas'];
+const COLOR_NAME={'#c2185b':'pink tua','#4fc3f7':'biru muda','#2e7d32':'hijau','#6d3b1f':'cokelat','#8d6e63':'cokelat','#7e57c2':'ungu','#ef5350':'merah','#37474f':'abu-abu','#a3324f':'marun','#d4a017':'kuning','#3f9b6b':'hijau','#e57a96':'pink'};
+const REACTS={accuse:['😱','👀','🙄'],claimBend:['😱','😤','👀'],deny:['🤔','🙄','😬'],swear:['🤲','🤔'],cry:['🥺','🤗','😢'],salah:['👀','😳','🤭'],shot:['😱','🔥','👀'],jab:['🔥','😬','🍿'],pengakuan:['😱','😂','🤦'],khianat:['💔','😱','🍿']};
 const BANDAR_STRATEGIES=['kambing','palsu','diam','drama','bestie'];
 
 function lowerFirst(s){return /^(Bu|TUH)\b/.test(s)?s:s.charAt(0).toLowerCase()+s.slice(1);}
@@ -595,20 +631,34 @@ function planSpeakers(){
   }
   const f=G.news.find(n=>n.type==='fitnah');
   if(f){const r=bots.find(b=>['julid','kepo','sosialita'].includes(b.bot)&&b.id!==f.target);if(r)slots.splice(1,0,{rumor:r.id,target:f.target});}
-  const mid=()=>Math.min(slots.length,2+ri(Math.max(1,slots.length-2)));
-  // salah kirim pesan
-  if(rnd()<.35&&bots.length){const w=pickR(bots);slots.splice(mid(),0,{drama:'salah',who:w.id});}
-  // curhat: yang paling sering dituduh
+  const add=arr=>{const at=Math.min(slots.length,2+ri(Math.max(1,slots.length-1)));slots.splice(at,0,...arr);};
+  const ok=id=>id!=null&&pl(id).alive;
+  // musuh bebuyutan: sindiran di hari pertama, debat panjang setelahnya
+  const [ra,rb]=G.rivals||[];
+  if(ok(ra)&&ok(rb)){
+    if(G.day===1)add([{drama:'sindir',a:ra,b:rb,step:0},{drama:'sindir',a:ra,b:rb,step:1}]);
+    else add([0,1,2,3,4,5,6].map(step=>({drama:'ldebat',a:ra,b:rb,step})));
+  }
+  // besti: pengkhianatan kalau salah satunya makin dicurigai
+  const [ba,bb]=G.besties||[];
+  if(ok(ba)&&ok(bb)&&!G.betrayed&&G.day>=2){
+    const [hi,lo]=[ba,bb].sort((x,y)=>pubSusp(y)-pubSusp(x));
+    if(pubSusp(hi)>.4)add([{drama:'khianat',a:lo,b:hi,step:0},{drama:'khianat',a:lo,b:hi,step:1}]);
+  }
+  // kejutan: dua sampai tiga per hari
+  const cand=[];
+  if(bots.length)cand.push(()=>add([{drama:'salah',who:pickR(bots).id}]),()=>add([{drama:'voice',who:pickR(bots).id}]),()=>add([{drama:'cctv'}]),()=>add([{drama:'paket'}]));
   const victim=bots.filter(b=>b.framed+b.accusedCount>=2).sort((a,b)=>(b.framed+b.accusedCount)-(a.framed+a.accusedCount))[0];
-  if(victim&&rnd()<.55)slots.splice(mid(),0,{drama:'curhat',who:victim.id});
-  // debat: pasangan dengan dendam terbesar
-  let pair=null,pg=1;
-  for(const a of bots)for(const b of alive())if(a.id!==b.id){const g=(a.grudge[b.id]||0)+(b.human?0:(b.grudge[a.id]||0));if(g>pg){pg=g;pair=[a,b];}}
-  if(pair&&rnd()<.7){const at=mid();slots.splice(at,0,{drama:'debat',a:pair[0].id,b:pair[1].id,step:0},{drama:'debat',a:pair[0].id,b:pair[1].id,step:1},{drama:'debat',a:pair[0].id,b:pair[1].id,step:2});}
-  // screenshot: kebohongan yang sudah terbukti, atau dua orang ngaku Bendahara
+  if(victim)cand.push(()=>add([{drama:'curhat',who:victim.id}]));
+  const baper=bots.find(b=>(b.bot==='baper'||b.bot==='polos')&&b.role!=='bandar'&&b.accusedCount>=1&&!b.confessed);
+  if(baper)cand.push(()=>add([{drama:'pengakuan',who:baper.id}]));
+  const chair=bots.find(b=>b.role==='ketua')||bots.find(b=>b.bot==='tegas'||b.bot==='bijak');
+  if(chair&&bots.length>=3){const quiet=bots.filter(b=>b.id!==chair.id).sort((a,b)=>PERS[a.bot].talk-PERS[b.bot].talk).slice(0,2);
+    cand.push(()=>add([{drama:'rapat',who:chair.id},...quiet.map(q=>({drama:'dipaksa',who:q.id}))]));}
   const liar=G.allMsgs.find(m=>m.type==='claimBend'&&!G.shotDone.has(m.from)&&pl(m.from).alive&&m.target!=null&&!pl(m.target).alive&&(pl(m.target).role==='bandar')!==m.value);
   const twoBend=G.bendClaimers.filter(x=>pl(x).alive).length>=2&&!G.shotDone.has('two');
-  if((liar||twoBend)&&bots.length)slots.splice(mid(),0,{drama:'shot',who:pickR(bots).id,liar:liar?liar.from:null,quote:liar?liar.text:null});
+  if((liar||twoBend)&&bots.length)cand.push(()=>add([{drama:'shot',who:pickR(bots).id,liar:liar?liar.from:null,quote:liar?liar.text:null}]));
+  shuffle(cand).slice(0,2+(rnd()<.5?1:0)).forEach(fn=>fn());
   return slots;
 }
 function accusedToday(id){return G.msgs.filter(m=>m.target===id&&(m.type==='accuse'||(m.type==='claimBend'&&m.value)||(m.type==='claimGosip'&&m.value)||(m.type==='report'&&m.value)));}
@@ -643,6 +693,8 @@ function botSpeakRaw(slot){
     const back=accused[0].from;
     return{from:p.id,type:'deny',back:rnd()<.35+.15*grudge(p.id,back)?back:null};
   }
+  const bestie=G.besties&&G.besties.includes(p.id)&&!G.betrayed?G.besties.find(x=>x!==p.id):null;
+  if(bestie!=null&&pl(bestie).alive&&accusedToday(bestie).length&&!p.defendedBestie){p.defendedBestie=G.day;return{from:p.id,type:'defend',target:bestie,core:'bestieDefend'};}
   const r=G.night.results[p.id];
   if(r&&!p.saidInfo){
     p.saidInfo=true;
@@ -692,19 +744,68 @@ function bandarSpeak(p,accused,per){
   if(G.scape!=null&&rnd()<.6)return{from:p.id,type:'accuse',target:G.scape,e:rnd()<.5?evidence(p,G.scape):null};
   return{from:p.id,type:'flavor'};
 }
+function sysEvent(html,apply,heat){return{sys:true,html,apply,heatType:heat||'shot'};}
 function dramaSpeak(s){
+  const alivePl=id=>id!=null&&pl(id).alive;
   if(s.drama==='salah'){
     const p=pl(s.who);if(!p.alive)return null;
-    const sus=rnd()<(p.role==='bandar'?.7:.3);
-    if(sus)p.salahSus=true;
+    const sus=rnd()<(p.role==='bandar'?.7:.3);if(sus)p.salahSus=true;
     return{from:p.id,type:'salah',sus,text:pickR(sus?SALAH_SUS:SALAH_INN)};
   }
+  if(s.drama==='voice'){
+    const p=pl(s.who);if(!p.alive)return null;
+    const sus=rnd()<(p.role==='bandar'?.65:.3);if(sus)p.salahSus=true;
+    return{from:p.id,type:'salah',sus,voice:true,text:`🎤 Pesan suara (0:${10+ri(40)}). Transkrip: "${pickR(sus?VOICE_SUS:VOICE_INN)}"`};
+  }
+  if(s.drama==='cctv'){
+    const b=alive().filter(p=>p.role==='bandar');if(!b.length)return null;
+    const who=rnd()<.6?pickR(b):pickR(alive());
+    const look=who.hair?'rambut terurai':`kerudung ${COLOR_NAME[who.hijab]||'gelap'}`;
+    return sysEvent(`<div class="sys news">📹 Rekaman CCTV warung Bu Tini jam 1 malam: terlihat orang ber-${esc(look)} lewat sambil bawa amplop cokelat.</div>`,
+      ()=>{for(const v of alive()){if(v.human||v.role==='bandar')continue;for(const q of alive())if((q.hair?'rambut terurai':`kerudung ${COLOR_NAME[q.hijab]||'gelap'}`)===look)mulBelief(v,q.id,TUNE.cctvLR);}},'shot');
+  }
+  if(s.drama==='paket'){
+    const b=alive().filter(p=>p.role==='bandar');
+    const t=b.length&&rnd()<.5?pickR(b):pickR(alive());
+    return sysEvent(`<div class="sys news">📦 Kurir COD berhenti di depan rumah <b>${esc(t.name)}</b>, bawa ${pickR(PAKET)}. Bayarnya tunai, lho…</div>`,
+      ()=>{for(const v of alive())if(!v.human&&v.role!=='bandar')mulBelief(v,t.id,TUNE.paketLR);},'shot');
+  }
   if(s.drama==='curhat'){const p=pl(s.who);if(!p.alive||p.cried)return null;p.cried=true;return{from:p.id,type:'cry',core:'cry'};}
+  if(s.drama==='pengakuan'){const p=pl(s.who);if(!p.alive||p.confessed)return null;p.confessed=true;return{from:p.id,type:'pengakuan',core:'pengakuan'};}
+  if(s.drama==='rapat'){const p=pl(s.who);if(!p.alive)return null;return{from:p.id,type:'rapat',core:'rapat'};}
+  if(s.drama==='dipaksa'){
+    const p=pl(s.who);if(!p.alive)return null;
+    const t=p.role==='bandar'?(alivePl(G.scape)?pl(G.scape):null):(pickAccuseTarget(p)||{}).q;
+    return t?{from:p.id,type:'accuse',target:t.id,core:'dipaksa'}:null;
+  }
+  if(s.drama==='sindir'){
+    const a=pl(s.a),b=pl(s.b);if(!a.alive||!b.alive)return null;
+    return s.step===0?{from:a.id,type:'jab',core:'sindirA'}:{from:b.id,type:'jab',target:a.id,core:'sindirB'};
+  }
+  if(s.drama==='ldebat'){
+    const a=pl(s.a),b=pl(s.b);if(!a.alive||!b.alive)return null;
+    const lines=[[a,b,'debate1','accuse'],[b,a,'debate2','accuse'],[a,b,'debate3','jab'],[b,a,'debate4','jab']];
+    if(s.step<4){const [x,y,core,type]=lines[s.step];x.mood++;return{from:x.id,type,target:y.id,core};}
+    if(s.step<6){
+      // penonton memilih pihak: membela yang paling tidak dicurigainya
+      const used=G.msgs.filter(m=>m.core==='tim').map(m=>m.from);
+      const w=shuffle(alive().filter(q=>!q.human&&q.id!==a.id&&q.id!==b.id&&!used.includes(q.id)))[0];if(!w)return null;
+      const side=w.role==='bandar'?(isBandar(a.id)?a:isBandar(b.id)?b:pickR([a,b])):(prob(w,a.id)<prob(w,b.id)?a:b);
+      return{from:w.id,type:'defend',target:side.id,core:'tim'};
+    }
+    const m=alive().find(q=>!q.human&&q.id!==a.id&&q.id!==b.id&&['bijak','tegas'].includes(q.bot))||alive().find(q=>!q.human&&q.id!==a.id&&q.id!==b.id);
+    return m?{from:m.id,type:'mediate',core:'mediate'}:null;
+  }
+  if(s.drama==='khianat'){
+    const a=pl(s.a),b=pl(s.b);if(!a.alive||!b.alive)return null;
+    if(s.step===0){G.betrayed=true;bump(b.id,a.id,3);b.mood+=2;return{from:a.id,type:'accuse',target:b.id,core:'khianat',khianat:true};}
+    return{from:b.id,type:'jab',target:a.id,core:'khianatReply'};
+  }
   if(s.drama==='debat'){
     const a=pl(s.a),b=pl(s.b);if(!a.alive||!b.alive)return null;
     if(s.step===0)return{from:a.id,type:'accuse',target:b.id,core:'debateA'};
     if(s.step===1)return b.human?null:{from:b.id,type:'accuse',target:a.id,core:'debateB'};
-    const m=alive().find(q=>!q.human&&q.id!==a.id&&q.id!==b.id&&['bijak','tegas','polos'].includes(q.bot))||alive().find(q=>!q.human&&q.id!==a.id&&q.id!==b.id);
+    const m=alive().find(q=>!q.human&&q.id!==a.id&&q.id!==b.id);
     return m?{from:m.id,type:'mediate',core:'mediate'}:null;
   }
   if(s.drama==='shot'){
@@ -713,6 +814,23 @@ function dramaSpeak(s){
     G.shotDone.add('two');
     const names=G.bendClaimers.filter(x=>pl(x).alive).map(x=>pl(x).name).join(' dan ');
     return{from:p.id,type:'shot',text:`📸 [screenshot] Lho, ${names} sama-sama ngaku Bendahara. Bendahara kan cuma satu! Salah satunya bohong 🤔`};
+  }
+  if(s.sidang)return sidangSpeak(s);
+  return null;
+}
+/* Sidang sebelum voting: tersangka membela diri, lalu saksi membongkar */
+function sidangSpeak(s){
+  if(s.sidang==='open')return sysEvent(`<div class="sys drama">⚖️ SIDANG DIMULAI. Dua orang yang paling dicurigai diberi kesempatan membela diri.</div>`,null,'shot');
+  if(s.sidang==='close')return sysEvent(`<div class="sys alert">Sidang selesai. Saatnya voting!</div>`,()=>{const b=document.getElementById('voteBtn');if(b){b.textContent='Voting sekarang';b.classList.add('primary');}},'shot');
+  const p=pl(s.who);if(!p.alive)return null;
+  if(s.sidang==='bela'){
+    if(p.human)return sysEvent(`<div class="sys alert">⚖️ Kamu termasuk tersangka! Tulis pembelaanmu sekarang.</div>`,()=>{chat.sent=Math.min(chat.sent,MAX_SEND-1);const i=document.getElementById('msgIn'),b=document.getElementById('send');if(i){i.disabled=false;b.disabled=false;}chat.waitDefense=Date.now();},'shot');
+    return{from:p.id,type:'swear',core:p.role==='bandar'?'pembelaanBandar':'pembelaan'};
+  }
+  if(s.sidang==='saksi'){
+    const t=s.target!=null&&pl(s.target).alive?s.target:null;if(t==null)return null;
+    const e=evidence(p,t);
+    return{from:p.id,type:'accuse',target:t,core:e?'bongkar':'bongkarPolos',e};
   }
   return null;
 }
@@ -818,19 +936,21 @@ function applyMsg(m){
       case 'deny':case 'swear':mulBelief(v,m.from,.93);break;
       case 'salah':mulBelief(v,m.from,m.sus?TUNE.salahLR:.9);break;
       case 'shot':if(t!=null)mulBelief(v,t,TUNE.shotLR);break;
-      case 'cry':mulBelief(v,m.from,.9);break;
+      case 'cry':case 'pengakuan':mulBelief(v,m.from,.9);break;
     }
   }
   G.msgs.push(m);G.allMsgs.push({...m,day:G.day});
 }
 
 /* ---------- voting ---------- */
-function botVote(p){
-  const cands=alive().filter(q=>q.id!==p.id);
+function botVote(p,pool){
+  const cands=(pool||alive()).filter(q=>q.id!==p.id);
+  if(!cands.length)return null;
   if(p.role==='bandar'){
     const partner=cands.find(q=>q.role==='bandar');
     if(partner&&pubSusp(partner.id)>.75&&rnd()<.3)return partner.id;
-    return cands.filter(q=>q.role!=='bandar').map(q=>({q,s:pubSusp(q.id)+rnd()*.12})).sort((a,b)=>b.s-a.s)[0].q.id;
+    const inn=cands.filter(q=>q.role!=='bandar');
+    return (inn.length?inn:cands).map(q=>({q,s:pubSusp(q.id)+rnd()*.12})).sort((a,b)=>b.s-a.s)[0].q.id;
   }
   const noise=PERS[p.bot].noise;
   return cands.map(q=>({q,s:prob(p,q.id)+TUNE.bandwagon*pubSusp(q.id)+TUNE.grudgeVote*grudge(p.id,q.id)+(rnd()-.5)*2*noise})).sort((a,b)=>b.s-a.s)[0].q.id;
@@ -839,7 +959,7 @@ function tally(votes){
   const count={};for(const [,t] of votes)count[t]=(count[t]||0)+1;
   let max=0,top=[];for(const [t,c] of Object.entries(count)){if(c>max){max=c;top=[+t];}else if(c===max)top.push(+t);}
   const need=TUNE.majority?Math.floor(alive().length/2)+1:1;
-  return{count,kicked:top.length===1&&max>=need?top[0]:null,need};
+  return{count,kicked:top.length===1&&max>=need?top[0]:null,need,top,max};
 }
 function applyKick(kid,votes){
   const k=pl(kid);k.alive=false;k.kickedDay=G.day;G.kicked.push(kid);
@@ -872,7 +992,7 @@ function simulate(games,n){
     while(!G.winner){
       G.night.actions={};for(const p of alive())G.night.actions[p.id]=botNightAction(p);
       resolveNight();
-      for(const s of planSpeakers()){const m=botSpeak(s);if(m)applyMsg(m);}
+      for(const s of planSpeakers()){const m=botSpeak(s);if(!m)continue;if(m.sys){if(m.apply)m.apply();}else applyMsg(m);}
       const votes=alive().map(p=>[p.id,botVote(p)]);const t=tally(votes);
       if(t.kicked!=null)applyKick(t.kicked,votes);
       if(!checkWin(true))G.day++;
@@ -1069,13 +1189,14 @@ function dayScreen(){
   render(`
   <div class="chathead">
     <div class="row between"><div><h2 style="font-size:1.1rem">Grup Arisan RT 05</h2><span class="small muted">Pertemuan ${G.day}/${TUNE.maxDay}${last?' · terakhir!':''}</span></div>
-      <button class="small" id="voteBtn">Mulai voting</button></div>
+      <button class="small" id="voteBtn">Mulai sidang</button></div>
     <div class="kas"><span>Kas arisan</span><span class="v">${jt(G.kas)}</span></div>
     <div class="kasbar"><i style="width:${G.kas/KAS_START*100}%"></i></div>
     <div class="row between"><div class="members">${alive().map(p=>av(p,30,true)).join('')}</div><span class="pill heat" id="heat">${heatLabel()}</span></div>
     <div class="row between"><span class="small muted" id="holdNote" hidden>Ibu-ibu menunggu kamu selesai mengetik…</span><button class="small ghost" id="speedBtn" style="margin-left:auto">Kecepatan: ${SPEEDS[chatSpeed].label}</button></div>
   </div>
   <div class="feed" id="feed" aria-live="polite">
+    <div class="sys narr">🎬 ${esc(narasi())}</div>
     <div class="sys">Pagi, Ibu-ibu! ☀️ Pertemuan ke-${G.day}.</div>
     ${G.news.map(newsHTML).join('')}
     ${last?`<div class="sys alert">Ini pertemuan terakhir. Kalau bandar tidak ketahuan hari ini, dia kabur bawa sisa kas!</div>`:''}
@@ -1083,16 +1204,44 @@ function dayScreen(){
   </div>
   ${me.alive?composerHTML():'<div class="composer"><button id="fastBtn">Percepat obrolan</button></div>'}`);
   bindComposer();
-  on('#voteBtn','click',()=>startVote());
+  on('#voteBtn','click',()=>chat.sidangDone?startVote():startSidang());
+  setTimeout(()=>sfx.jeng(),400);
   on('#fastBtn','click',()=>{chat.fast=true;});
   on('#speedBtn','click',e=>{const k=Object.keys(SPEEDS);chatSpeed=k[(k.indexOf(chatSpeed)+1)%k.length];store.set('chatSpeed',chatSpeed);e.target.textContent='Kecepatan: '+SPEEDS[chatSpeed].label;});
   scrollFeed();
   setTimeout(()=>tick(tok),900);
 }
+function narasi(){const others=alive().filter(p=>!p.human);return pickR(NARASI).replace('{t}',others.length?pickR(others).name:'tetangga');}
+/* Sidang: obrolan sisa dihentikan, dua tersangka teratas membela diri, lalu seorang saksi membongkar */
+function startSidang(){
+  if(screen!=='day'||chat.sidang)return;
+  chat.sidang=true;const tok=++G.token;
+  chat.queue=chat.queue.slice(0,chat.idx);
+  const sus=alive().slice().sort((a,b)=>pubSusp(b.id)-pubSusp(a.id)).slice(0,2);
+  const witness=shuffle(alive().filter(p=>!p.human&&!sus.includes(p)))[0];
+  let target=sus[0]?sus[0].id:null;
+  if(witness){
+    if(witness.role==='bandar'){const inn=sus.find(x=>x.role!=='bandar');if(inn)target=inn.id;}
+    else{const t=sus.slice().sort((a,b)=>prob(witness,b.id)-prob(witness,a.id))[0];if(t)target=t.id;}
+  }
+  chat.queue.push({sidang:'open',drama:'s'},...sus.map(x=>({sidang:'bela',who:x.id,drama:'s'})));
+  if(witness&&target!=null)chat.queue.push({sidang:'saksi',who:witness.id,target,drama:'s'});
+  chat.queue.push({sidang:'close',drama:'s'});
+  chat.sidangDone=true;chat.done=false;
+  const b=document.getElementById('voteBtn');if(b)b.textContent='Lewati ke voting';
+  sfx.jeng();
+  setTimeout(()=>tick(tok),500);
+}
+function addReacts(mid,type){
+  const pool=REACTS[type];if(!pool)return;
+  const el=document.querySelector('#'+mid+' .bubble');if(!el||el.querySelector('.reacts'))return;
+  const picks=shuffle(pool).slice(0,1+ri(2)).map(e=>`${e} ${1+ri(4)}`).join('  ');
+  el.insertAdjacentHTML('beforeend',`<span class="reacts">${picks}</span>`);
+}
 const HEAT=[[0,'Adem 😌'],[4,'Mulai panas 🌶️'],[8,'Panas 🔥'],[13,'Membara 🔥🔥']];
 function heatLabel(){return 'Suasana: '+HEAT.reduce((l,[t,n])=>G.heat>=t?n:l,HEAT[0][1]);}
 function addHeat(m){
-  const w={accuse:1,deny:1,swear:1,salah:2,cry:2,shot:3,ngambek:3};
+  const w={accuse:1,deny:1,swear:1,salah:2,cry:2,shot:3,ngambek:3,jab:2,pengakuan:3,rapat:2};
   let d=w[m.type]||0;if(m.core&&m.core.startsWith('debate'))d=2;if(m.type==='claimBend'&&m.value)d=2;
   if(!d)return;G.heat+=d;const h=document.getElementById('heat');if(h)h.textContent=heatLabel();
 }
@@ -1122,16 +1271,20 @@ const later=(tok,ms,fn)=>setTimeout(()=>{if(G&&G.token===tok&&screen==='day')fn(
 function tick(tok){
   if(!G||G.token!==tok||screen!=='day')return;
   if(chat.idx>=chat.queue.length){
-    if(!chat.done){chat.done=true;addToFeed(`<div class="sys">Obrolan mulai sepi. Tekan <b>Mulai voting</b> kalau sudah siap.</div>`);}
+    if(!chat.done){chat.done=true;addToFeed(chat.sidangDone?`<div class="sys">Tekan <b>Voting sekarang</b> kalau sudah siap.</div>`:`<div class="sys">Obrolan mulai sepi. Tekan <b>Mulai sidang</b> kalau sudah siap.</div>`);}
     return;
   }
   // tunggu dulu kalau pemain sedang mengetik, kecuali sedang dipercepat
   const hold=document.getElementById('holdNote');
-  if(!chat.fast&&playerBusy()){if(hold)hold.hidden=false;setTimeout(()=>tick(tok),700);return;}
+  if(!chat.fast&&(playerBusy()||(chat.waitDefense&&Date.now()-chat.waitDefense<12000))){if(hold)hold.hidden=false;setTimeout(()=>tick(tok),700);return;}
   if(hold)hold.hidden=true;
   const slot=chat.queue[chat.idx++];
   const m=botSpeak(slot);
   if(!m){tick(tok);return;}
+  if(m.sys){
+    later(tok,1200,()=>{if(m.apply)m.apply();addToFeed(m.html);addHeat({type:m.heatType});sfx.jeng();later(tok,gapTime()+800,()=>tick(tok));});
+    return;
+  }
   const who=pl(m.from);
   m.text=m.text||textFor(m);
   addToFeed(`<div class="typing">${esc(who.name)} sedang mengetik…</div>`);
@@ -1140,8 +1293,10 @@ function tick(tok){
     applyMsg(m);addHeat(m);
     const mid='m'+(G.msgCounter=(G.msgCounter||0)+1);
     addToFeed(msgHTML(m,mid));sfx.pop();
+    const rk=m.khianat?'khianat':m.type==='claimBend'&&!m.value?null:m.type;
+    if(rk&&REACTS[rk]&&rnd()<.75)later(tok,900+rnd()*1400,()=>addReacts(mid,rk));
     let next=gapTime();
-    if(m.type==='salah'){
+    if(m.type==='salah'&&!m.voice){
       // pesan salah kirim dihapus lagi, tapi sudah sempat terbaca
       later(tok,2600,()=>{const el=document.querySelector('#'+mid+' .txt');if(el){el.textContent='🚫 Pesan ini telah dihapus';el.parentElement.classList.add('deleted');}
         addToFeed(`<div class="sys">${esc(who.name)}: "Eh maaf salah grup 🙈"</div>`);});
@@ -1206,9 +1361,12 @@ function sendHuman(raw){
   if(['accuse','defend','claimBend','claimGosip','report'].includes(hm.type)){m.type=hm.type;m.value=hm.value;}
   else if(hm.type==='swear'||hm.type==='deny'){m.type='swear';}
   else if(hm.type==='claimRole'){m.type='claimRole';}
+  chat.waitDefense=0;
   applyMsg(m);addHeat(m);
   G.humanStats.statements++;
-  addToFeed(msgHTML(m));sfx.send();chat.sent++;
+  const hid='h'+(G.msgCounter=(G.msgCounter||0)+1);
+  addToFeed(msgHTML(m,hid));sfx.send();chat.sent++;
+  if(REACTS[m.type])setTimeout(()=>addReacts(hid,m.type),1400);
   // siapa yang menanggapi: yang disebut dulu, lalu satu-dua orang lain
   const responders=[];
   if(hm.target!=null&&!pl(hm.target).human&&pl(hm.target).alive)responders.push(hm.target);
@@ -1227,46 +1385,71 @@ function sendHuman(raw){
 }
 
 /* ---------- voting (mode bot) ---------- */
-function startVote(){
-  if(screen!=='day')return;
+function startVote(only,revote){
+  if(screen!=='day'&&screen!=='tie')return;
   screen='vote';G.token++;
   const me=human();
-  const cands=alive();
+  const pool=only?only.map(pl):alive();
+  const cands=pool;
   let sel=null;
   const votes=[];
-  for(const p of alive())if(!p.human)votes.push([p.id,botVote(p)]);
-  const draw=(revealed)=>{
-    const t=tally(revealed?votes:[]);
-    const total=revealed?votes.length:0;
-    app.querySelector('#poll').innerHTML=cands.filter(p=>p.id!==me.id||revealed).map(p=>{
-      const c=t.count[p.id]||0;
-      const voters=revealed?votes.filter(v=>v[1]===p.id).map(v=>av(pl(v[0]),18)).join(''):'';
-      return `<button class="opt ${sel===p.id?'sel':''}" data-id="${p.id}" ${revealed||p.id===me.id?'disabled':''}>${av(p,36,true)}<span><b>${esc(p.name)}</b></span><span class="count">${revealed?c:''}</span>
-        <span class="vbar"><i style="width:${total?c/total*100:0}%"></i></span>${voters?`<span class="voters">${voters}</span>`:''}</button>`;
+  for(const p of alive())if(!p.human){const v=botVote(p,pool);if(v!=null)votes.push([p.id,v]);}
+  const canVote=me.alive&&pool.some(q=>q.id!==me.id);
+  const shown=new Map();
+  const draw=()=>{
+    const total=[...shown.values()].reduce((a,b)=>a+b.length,0);
+    app.querySelector('#poll').innerHTML=cands.map(p=>{
+      const vs=shown.get(p.id)||[];
+      return `<button class="opt ${sel===p.id?'sel':''}" data-id="${p.id}" ${shown.size||p.id===me.id||!canVote?'disabled':''}>${av(p,36,true)}<span><b>${esc(p.name)}</b></span><span class="count">${shown.size?vs.length:''}</span>
+        <span class="vbar"><i style="width:${total?vs.length/Math.max(1,votes.length)*100:0}%"></i></span>${vs.length?`<span class="voters">${vs.map(v=>av(pl(v),18)).join('')}</span>`:''}</button>`;
     }).join('');
   };
   render(`
-  <div class="top"><div class="grow"><h2>Voting pertemuan ${G.day}</h2><span class="sub">Siapa yang dikeluarkan dari grup?</span></div></div>
-  <div class="scroll"><p class="small muted">${me.alive?'Pilih satu orang. Suara terbanyak dikeluarkan. Kalau seri, tidak ada yang keluar.':'Kamu sudah keluar, jadi hanya bisa melihat hasilnya.'}</p><div class="poll" id="poll"></div></div>
-  <div class="bottom">${me.alive?'<button class="ghost" id="abstain">Tidak memilih</button><button class="primary" id="go" disabled>Pilih dulu</button>':'<button class="primary" id="go">Lihat hasil</button>'}</div>`);
-  draw(false);
+  <div class="top"><div class="grow"><h2>${revote?'Voting ulang':'Voting pertemuan '+G.day}</h2><span class="sub">${revote?'Hanya antara yang seri':'Siapa yang dikeluarkan dari grup?'}</span></div></div>
+  <div class="scroll"><p class="small muted">${canVote?'Pilih satu orang. Suara terbanyak dikeluarkan. Kalau seri, ada pembelaan terakhir lalu voting ulang.':'Kamu tidak ikut memilih kali ini. Lihat hasilnya.'}</p>
+    <div class="poll" id="poll"></div><div class="vlog" id="vlog" aria-live="polite"></div></div>
+  <div class="bottom">${canVote?'<button class="ghost" id="abstain">Tidak memilih</button><button class="primary" id="go" disabled>Pilih dulu</button>':'<button class="primary" id="go">Buka suara</button>'}</div>`);
+  draw();
   app.onclick=e=>{
     if(screen!=='vote')return;
     const b=e.target.closest('.opt[data-id]');
-    if(b&&!b.disabled){sel=+b.dataset.id;sfx.pop();draw(false);const g=document.getElementById('go');g.disabled=false;g.textContent='Kunci suara';return;}
+    if(b&&!b.disabled){sel=+b.dataset.id;sfx.pop();draw();const g=document.getElementById('go');g.disabled=false;g.textContent='Kunci suara';return;}
     const id=e.target.closest('button')&&e.target.closest('button').id;
-    if(id==='go'||id==='abstain'){
-      if(id==='go'&&me.alive&&sel==null)return;
-      app.onclick=null;
-      if(me.alive&&id==='go'){votes.push([me.id,sel]);G.humanStats.votes++;if(isBandar(sel))G.humanStats.votedBandar++;}
-      sfx.shake();draw(true);
+    if(id!=='go'&&id!=='abstain')return;
+    if(id==='go'&&canVote&&sel==null)return;
+    app.onclick=null;
+    if(canVote&&id==='go'){votes.push([me.id,sel]);G.humanStats.votes++;if(isBandar(sel))G.humanStats.votedBandar++;}
+    app.querySelector('.bottom').innerHTML='<button class="ghost" id="skipVotes">Tampilkan semua</button>';
+    // suara dibuka satu per satu, dengan komentar
+    const order=shuffle(votes);let i=0;const tok=G.token;
+    const step=()=>{
+      if(G.token!==tok||screen!=='vote')return;
+      if(i>=order.length)return finish();
+      const [v,t]=order[i++];
+      if(!shown.size)cands.forEach(c=>shown.set(c.id,[]));
+      (shown.get(t)||shown.set(t,[]).get(t)).push(v);
+      draw();sfx.pop();
+      const voter=pl(v),comment=voter.human?'':' "'+compose(voter,'voteComment',{})+'"';
+      document.getElementById('vlog').insertAdjacentHTML('beforeend',`<div class="vline">${av(voter,22)}<span><b>${esc(voter.name)}</b> memilih <b>${esc(pl(t).name)}</b>${esc(comment)}</span></div>`);
+      timer=setTimeout(step,{santai:1100,normal:700,cepat:250}[chatSpeed]);
+    };
+    let timer=null;
+    const finish=()=>{
+      if(G.token!==tok)return;
+      clearTimeout(timer);
+      shown.clear();cands.forEach(c=>shown.set(c.id,[]));for(const [v,t] of votes)(shown.get(t)||shown.set(t,[]).get(t)).push(v);draw();
+      sfx.shake();
       const bottom=app.querySelector('.bottom');bottom.innerHTML='<button class="primary" id="next">Lanjut</button>';
-      bottom.querySelector('#next').onclick=()=>afterVote(votes);
-    }
+      bottom.querySelector('#next').onclick=()=>afterVote(votes,revote);
+    };
+    on('#skipVotes','click',()=>{i=order.length;finish();});
+    if(!order.length)return finish();
+    step();
   };
 }
-function afterVote(votes){
+function afterVote(votes,revote){
   const t=tally(votes);
+  if(t.kicked==null&&!revote&&t.top.length>=2&&t.max>0)return tieScreen(t.top,votes);
   for(const [v,x] of votes){pl(x).votesGot++;if(x!==t.kicked)bump(x,v,1);}
   G.votes.push({day:G.day,votes,kicked:t.kicked});
   const me=human();
@@ -1276,6 +1459,19 @@ function afterVote(votes){
   }
   const over=checkWin(true);
   kickScreen(t,over);
+}
+/* Seri: pembelaan terakhir dari yang seri, lalu voting ulang di antara mereka */
+function tieScreen(top,votes){
+  screen='tie';const me=human();
+  sfx.jeng();
+  const lines=top.map(id=>{const p=pl(id);
+    const text=p.human?'(Kamu tersangka! Yakinkan mereka di voting ulang.)':compose(p,p.role==='bandar'?'pembelaanBandar':'pembelaan',{});
+    return `<div class="lastwords">${av({...p,alive:true},44)}<div class="bubble"><span class="who" style="color:${p.hijab};display:block;font-size:12px">${esc(p.name)}</span>${esc(text)}</div></div>`;}).join('');
+  render(`<div class="top"><div class="grow"><h2>Seri!</h2><span class="sub">${top.map(id=>esc(pl(id).name)).join(' vs ')}</span></div></div>
+  <div class="scroll"><div class="suspense" style="animation:none">⚖️ Pembelaan terakhir</div>${lines}
+    <p class="small muted">Voting ulang hanya di antara yang seri. Kalau masih seri, tidak ada yang keluar.</p></div>
+  <div class="bottom"><button class="primary" id="re">Voting ulang</button></div>`);
+  on('#re','click',()=>startVote(top,true));
 }
 function kickScreen(t,over){
   screen='kick';const tok=++G.token;

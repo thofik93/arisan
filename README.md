@@ -22,6 +22,11 @@ Ibu-ibu bot digerakkan oleh **Otak ARISAN**, model bahasa yang dibuat khusus unt
 
 ### Drama
 
+- **Alur sinetron:** setiap permainan ada sepasang musuh bebuyutan (saling sindir di hari pertama, lalu debat panjang sampai penonton memihak) dan sepasang besti (saling membela, tapi bisa berkhianat kalau salah satunya makin dicurigai).
+- **Sidang sebelum voting:** dua orang yang paling dicurigai membela diri (termasuk kamu, kalau kamu tersangka), lalu seorang saksi membongkar bukti.
+- **Voting dibuka satu per satu** dengan komentar setiap pemilih. Kalau seri, ada pembelaan terakhir lalu voting ulang di antara yang seri.
+- **Kejutan harian:** pesan suara, rekaman CCTV warung, paket COD misterius, pengakuan palsu karena tertekan, dan rapat darurat yang memaksa ibu pendiam bicara.
+- Narasi pagi ala sinetron dengan bunyi "jeng jeng", dan reaksi emoji di bawah pesan.
 - Indikator suasana grup, dari Adem sampai Membara.
 - Perdebatan dua ibu yang saling dendam, lalu ada yang menengahi.
 - Curhat sambil menangis dari yang paling sering dituduh.
