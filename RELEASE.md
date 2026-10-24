@@ -53,7 +53,10 @@ npm run android:bundle
 ### 3. Isi Play Console
 
 1. Buat aplikasi baru: nama "ARISAN", jenis **Game**, gratis.
-2. **Data safety**: pilih *Tidak mengumpulkan data* dan *Tidak membagikan data*.
+2. **Data safety**: pilih *Mengumpulkan data*, *Tidak membagikan data*.
+   - Jenis: **App activity → In-app search history/Other user-generated content** (pesan chat yang disamarkan) dan **App interactions**.
+   - Opsional (pemain memilih), tidak terhubung ke identitas, dienkripsi saat dikirim (HTTPS), tujuan: *App functionality* dan *Analytics*.
+   - Data bisa dihapus: catatan otomatis terhapus setelah setahun.
 3. **Rating konten** (kuesioner IARC): tidak ada kekerasan, judi, atau konten dewasa. Ada unsur "fitnah" dan "bohong" sebagai mekanik permainan deduksi, setara permainan kartu Werewolf. Hasilnya biasanya Semua Umur atau 3+.
 4. **Target audiens**: 13+ paling aman. Memilih anak-anak memicu persyaratan tambahan dari program Families.
 5. **Listing**: salin teks dari `STORE.md`. Siapkan ikon 512×512 (`assets/icon-only.png`, perkecil dulu), gambar fitur 1024×500, dan minimal 2 screenshot HP.
@@ -72,7 +75,7 @@ Di `android/app/build.gradle`, naikkan `versionCode` (bilangan bulat, wajib sela
 3. Di [App Store Connect](https://appstoreconnect.apple.com), buat aplikasi baru dengan Bundle ID `io.github.thofik93.arisan`.
 4. Di Xcode, pilih perangkat **Any iOS Device**, lalu **Product → Archive → Distribute App → App Store Connect**.
 5. Isi App Store Connect:
-   - **App Privacy**: *Data Not Collected*.
+   - **App Privacy**: *User Content → Other User Content* dan *Usage Data → Product Interaction*, keduanya **Not Linked to You**, tidak dipakai untuk tracking, tujuan *App Functionality* dan *Analytics*.
    - **Age Rating**: 4+.
    - **Kategori**: Games → Board (kedua: Casual).
    - **Screenshot**: wajib untuk iPhone 6,9" (contoh: iPhone 16 Pro Max di simulator). Ambil dengan `xcrun simctl io booted screenshot layar.png`.
@@ -93,4 +96,4 @@ Versi ini sengaja tanpa iklan dan tanpa pembelian, supaya proses review pertama 
 - **Kosmetik berbayar** (kerudung, bingkai, gelar, stiker) lewat In-App Purchase, di samping kosmetik yang dibeli dengan uang di dalam game.
 - **Sekali bayar untuk menghapus iklan.**
 
-Kalau iklan atau pembelian ditambahkan, perbarui Data safety, App Privacy, dan `privacy.html`.
+Kalau iklan atau pembelian ditambahkan, perbarui Data safety, App Privacy, dan `privacy.html`. Rincian data yang dikirim fitur Bantu bot belajar ada di `LEARNING.md`.

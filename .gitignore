@@ -4,3 +4,8 @@ www/
 *.keystore
 *.jks
 android/keystore.properties
+data/
+learning-report.md
+server/.dev.vars
+server/.wrangler/
+server/node_modules/

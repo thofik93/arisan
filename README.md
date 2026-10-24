@@ -106,6 +106,8 @@ Pemasukan direncanakan dari sponsor langsung, bukan jaringan iklan. Brand bisa t
 - `index.html`: seluruh game dalam satu file (HTML, CSS, JS) tanpa build dan tanpa dependensi. Progres disimpan di `localStorage`.
 - `android/`, `ios/`: proyek native [Capacitor 7](https://capacitorjs.com).
 - `privacy.html`: kebijakan privasi untuk toko aplikasi.
+- `LEARNING.md`: cara bot belajar dari catatan permainan pemain (server Cloudflare di `server/`, pelatihan di `scripts/train.mjs`, uji di `tests/`).
+- `brain.json`: otak hasil latihan yang diunduh game.
 - `scripts/`: menyalin web ke `www/`, dan membuat gambar sumber ikon dan splash.
 
 ```bash

@@ -7,5 +7,5 @@ const www = new URL('www/', root);
 
 rmSync(www, { recursive: true, force: true });
 mkdirSync(www, { recursive: true });
-for (const file of ['index.html', 'privacy.html', 'sponsors.json']) cpSync(new URL(file, root), new URL(file, www));
+for (const file of ['index.html', 'privacy.html', 'sponsors.json', 'brain.json']) cpSync(new URL(file, root), new URL(file, www));
 console.log('www/ siap.');

@@ -1,0 +1,44 @@
+# Latihan mingguan otak bot dari catatan permainan pemain.
+# Hasilnya diajukan sebagai PR berisi brain.json; game baru memakainya setelah PR disetujui dan di-merge.
+name: Latih otak bot
+on:
+  schedule:
+    - cron: '0 19 * * 0'   # Senin 02.00 WIB
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+concurrency: learn
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Unduh catatan permainan
+        env:
+          LEARN_API: ${{ secrets.LEARN_API }}
+          ADMIN_TOKEN: ${{ secrets.LEARN_ADMIN_TOKEN }}
+        run: node scripts/fetch-data.mjs data/export.jsonl
+      - name: Latih
+        run: node scripts/train.mjs data/export.jsonl
+      - name: Uji pemahaman pesan dengan otak baru
+        run: |
+          npm install --no-save playwright@1.61.0
+          npx playwright install --with-deps chromium
+          node tests/nlu.mjs
+      - name: Ajukan PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet -- brain.json; then echo "Tidak ada perubahan"; exit 0; fi
+          branch="brain/$(date +%Y%m%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add brain.json
+          git commit -m "brain: latihan mingguan $(date +%F)"
+          git push -u origin "$branch"
+          gh pr create --base main --title "Otak bot: latihan $(date +%F)" --body-file learning-report.md

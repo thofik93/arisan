@@ -1,0 +1,542 @@
+[
+ {
+  "text": "aku curiga sama bu ratna",
+  "expect": "accuse@Bu Ratna"
+ },
+ {
+  "text": "Ratna itu bandarnya!",
+  "expect": "accuse@Bu Ratna"
+ },
+ {
+  "text": "bu ratna bukan bandar kok",
+  "expect": "defend@Bu Ratna"
+ },
+ {
+  "text": "aku gak curiga sama yuyun",
+  "expect": "defend@Bu Yuyun"
+ },
+ {
+  "text": "Aku Bendahara. Bu Siti itu BANDAR!",
+  "expect": "claimBend@Bu Hajjah Siti"
+ },
+ {
+  "text": "aku bendahara, bu lilis bersih",
+  "expect": "claimBend@Bu Lilis"
+ },
+ {
+  "text": "semalam aku lihat bu wati keluar rumah",
+  "expect": "report@Bu Wati"
+ },
+ {
+  "text": "bu dewi semalam di rumah aja",
+  "expect": "report@Bu Dewi"
+ },
+ {
+  "text": "Demi Allah, aku bukan bandar!",
+  "expect": "swear"
+ },
+ {
+  "text": "menurut kalian siapa bandarnya?",
+  "expect": "question"
+ },
+ {
+  "text": "dasar munafik kalian",
+  "expect": "angry"
+ },
+ {
+  "text": "hiks aku sedih dituduh terus",
+  "expect": "cry"
+ },
+ {
+  "text": "bu sri bukan bandar, bu wati yang bandar",
+  "expect": "accuse@Bu Wati"
+ },
+ {
+  "text": "bukan bu ratna, justru bu dewi pelakunya",
+  "expect": "accuse@Bu Dewi"
+ },
+ {
+  "text": "aku percaya bu yuyun, tapi bu lilis mencurigakan",
+  "expect": "accuse@Bu Lilis"
+ },
+ {
+  "text": "aku setuju sama bu endah, bu sri aneh banget",
+  "expect": "accuse@Bu Sri"
+ },
+ {
+  "text": "bu sri, aku bukan bandar",
+  "expect": "deny@Bu Sri"
+ },
+ {
+  "text": "bu ratna kok nuduh aku sih, aku bersih",
+  "expect": "deny@Bu Ratna"
+ },
+ {
+  "text": "bu wati dari tadi nuduh aku terus",
+  "expect": "accuse@Bu Wati"
+ },
+ {
+  "text": "bu sri sus bgt",
+  "expect": "accuse@Bu Sri"
+ },
+ {
+  "text": "wati boong tuh",
+  "expect": "accuse@Bu Wati"
+ },
+ {
+  "text": "gw yakin dewi yg nilep",
+  "expect": "accuse@Bu Dewi"
+ },
+ {
+  "text": "bandarnyaaa pasti bu ratnaaa",
+  "expect": "accuse@Bu Ratna"
+ },
+ {
+  "text": "bu yuyn mencurigakan",
+  "expect": "accuse@Bu Yuyun"
+ },
+ {
+  "text": "aku gk percaya sama bu lilis",
+  "expect": "accuse@Bu Lilis"
+ },
+ {
+  "text": "bu endah gak mungkin bandar",
+  "expect": "defend@Bu Endah"
+ },
+ {
+  "text": "jangan tuduh bu yuyun dulu",
+  "expect": "defend@Bu Yuyun"
+ },
+ {
+  "text": "ayo vote bu sri aja",
+  "expect": "accuse@Bu Sri"
+ },
+ {
+  "text": "keluarin bu wati hari ini",
+  "expect": "accuse@Bu Wati"
+ },
+ {
+  "text": "jangan pilih bu dewi",
+  "expect": "defend@Bu Dewi"
+ },
+ {
+  "text": "bu ratna gak salah lagi, bandarnya dia",
+  "expect": "accuse@Bu Ratna"
+ },
+ {
+  "text": "bu sri semalam ke mana?",
+  "expect": "ask@Bu Sri/alibi"
+ },
+ {
+  "text": "bu wati kmn smlm?",
+  "expect": "ask@Bu Wati/alibi"
+ },
+ {
+  "text": "bu ratna, menurutmu siapa bandarnya?",
+  "expect": "ask@Bu Ratna/opinion"
+ },
+ {
+  "text": "bu dewi kenapa curiga sama bu yuyun?",
+  "expect": "ask@Bu Dewi/why"
+ },
+ {
+  "text": "bu lilis peranmu apa?",
+  "expect": "ask@Bu Lilis/role"
+ },
+ {
+  "text": "siapa bendaharanya? ngaku dong",
+  "expect": "ask/callRole"
+ },
+ {
+  "text": "bu endah bandar ya?",
+  "expect": "ask@Bu Endah/about"
+ },
+ {
+  "text": "setuju!",
+  "expect": "accuse@Bu Wati",
+  "context": [
+   [
+    "Bu Ratna",
+    "accuse",
+    "Bu Wati"
+   ]
+  ]
+ },
+ {
+  "text": "iya bener, aku juga mikir gitu",
+  "expect": "accuse@Bu Wati",
+  "context": [
+   [
+    "Bu Ratna",
+    "accuse",
+    "Bu Wati"
+   ]
+  ]
+ },
+ {
+  "text": "gak setuju, dia orang baik",
+  "expect": "defend@Bu Wati",
+  "context": [
+   [
+    "Bu Ratna",
+    "accuse",
+    "Bu Wati"
+   ]
+  ]
+ },
+ {
+  "text": "masa sih?",
+  "expect": "defend@Bu Wati",
+  "context": [
+   [
+    "Bu Ratna",
+    "accuse",
+    "Bu Wati"
+   ]
+  ]
+ },
+ {
+  "text": "dia bohong!",
+  "expect": "accuse@Bu Ratna",
+  "context": [
+   [
+    "Bu Ratna",
+    "report",
+    "Bu Wati",
+    true
+   ]
+  ]
+ },
+ {
+  "text": "iya, dia mencurigakan",
+  "expect": "accuse@Bu Wati",
+  "context": [
+   [
+    "Bu Ratna",
+    "accuse",
+    "Bu Wati"
+   ]
+  ]
+ },
+ {
+  "text": "kenapa kamu nuduh aku?",
+  "expect": "ask@Bu Lilis/why",
+  "context": [
+   [
+    "Bu Lilis",
+    "accuse",
+    "ME"
+   ]
+  ]
+ },
+ {
+  "text": "buktinya apa?",
+  "expect": "ask@Bu Lilis/why",
+  "context": [
+   [
+    "Bu Lilis",
+    "accuse",
+    "Bu Dewi"
+   ]
+  ]
+ },
+ {
+  "text": "bukan aku!",
+  "expect": "deny@Bu Lilis",
+  "context": [
+   [
+    "Bu Lilis",
+    "accuse",
+    "ME"
+   ]
+  ]
+ },
+ {
+  "text": "fitnah itu",
+  "expect": "deny@Bu Lilis",
+  "context": [
+   [
+    "Bu Lilis",
+    "accuse",
+    "ME"
+   ]
+  ]
+ },
+ {
+  "text": "kamu sendiri semalam ke mana?",
+  "expect": "ask@Bu Lilis/alibi",
+  "context": [
+   [
+    "Bu Lilis",
+    "accuse",
+    "ME"
+   ]
+  ]
+ },
+ {
+  "text": "justru kamu yang aneh",
+  "expect": "accuse@Bu Lilis",
+  "context": [
+   [
+    "Bu Lilis",
+    "accuse",
+    "ME"
+   ]
+  ]
+ },
+ {
+  "text": "aku warga biasa kok",
+  "expect": "claimRole"
+ },
+ {
+  "text": "aku bukan bendahara",
+  "expect": "deny"
+ },
+ {
+  "text": "assalamualaikum ibu-ibu",
+  "expect": "greet"
+ },
+ {
+  "text": "wkwkwk",
+  "expect": "laugh"
+ },
+ {
+  "text": "makasih bu yuyun",
+  "expect": "thanks@Bu Yuyun"
+ },
+ {
+  "text": "sandal bu ratna sama kayak yang di kotak kas",
+  "expect": "accuse@Bu Ratna"
+ },
+ {
+  "text": "menurutku bu endah pelakunya",
+  "expect": "accuse@Bu Endah"
+ },
+ {
+  "text": "feeling aku sih bu lilis",
+  "expect": "accuse@Bu Lilis"
+ },
+ {
+  "text": "bu yuyun polos gitu masa bandar",
+  "expect": "defend@Bu Yuyun"
+ },
+ {
+  "text": "aku yakin bu hajjah siti jujur",
+  "expect": "defend@Bu Hajjah Siti"
+ },
+ {
+  "text": "siti itu orang baik, jangan dituduh",
+  "expect": "defend@Bu Hajjah Siti"
+ },
+ {
+  "text": "kayaknya bu dewi deh yang ambil uangnya",
+  "expect": "accuse@Bu Dewi"
+ },
+ {
+  "text": "bu wati ngeles terus dari tadi",
+  "expect": "accuse@Bu Wati"
+ },
+ {
+  "text": "aku liat bu ratna keluar jam 1 malam",
+  "expect": "report@Bu Ratna"
+ },
+ {
+  "text": "bu sri semalam tidur kok, aku intip",
+  "expect": "report@Bu Sri"
+ },
+ {
+  "text": "bu lilis pura2 polos padahal licik",
+  "expect": "accuse@Bu Lilis"
+ },
+ {
+  "text": "plis percaya aku, aku bukan bandar",
+  "expect": "deny"
+ },
+ {
+  "text": "sumpah bukan aku yang ambil",
+  "expect": "swear"
+ },
+ {
+  "text": "bu dewi, kamu yang bandar kan?",
+  "expect": "ask@Bu Dewi/about"
+ },
+ {
+  "text": "bu endah semalam ngapain?",
+  "expect": "ask@Bu Endah/alibi"
+ },
+ {
+  "text": "bu yuyun kamu curiga sama siapa?",
+  "expect": "ask@Bu Yuyun/opinion"
+ },
+ {
+  "text": "kenapa bu ratna yakin banget bu sri bandar?",
+  "expect": "ask@Bu Ratna/why"
+ },
+ {
+  "text": "bu wati, kamu bendahara bukan?",
+  "expect": "ask@Bu Wati/role"
+ },
+ {
+  "text": "yang bendahara mana nih? ngaku",
+  "expect": "ask/callRole"
+ },
+ {
+  "text": "ibu-ibu menurut kalian gimana?",
+  "expect": "question"
+ },
+ {
+  "text": "aku bendahara dan bu ratna bandarnya",
+  "expect": "claimBend@Bu Ratna"
+ },
+ {
+  "text": "saya bendahara, semalam saya audit bu yuyun hasilnya bersih",
+  "expect": "claimBend@Bu Yuyun"
+ },
+ {
+  "text": "pagi ibu ibu",
+  "expect": "greet"
+ },
+ {
+  "text": "hahaha",
+  "expect": "laugh"
+ },
+ {
+  "text": "makasih ya bu endah udah belain",
+  "expect": "thanks@Bu Endah"
+ },
+ {
+  "text": "setuju banget",
+  "expect": "accuse@Bu Sri",
+  "context": [
+   [
+    "Bu Dewi",
+    "accuse",
+    "Bu Sri"
+   ]
+  ]
+ },
+ {
+  "text": "nah kan bener",
+  "expect": "accuse@Bu Sri",
+  "context": [
+   [
+    "Bu Dewi",
+    "accuse",
+    "Bu Sri"
+   ]
+  ]
+ },
+ {
+  "text": "aku gak setuju",
+  "expect": "accuse@Bu Sri",
+  "context": [
+   [
+    "Bu Dewi",
+    "defend",
+    "Bu Sri"
+   ]
+  ]
+ },
+ {
+  "text": "iya bu dewi bener",
+  "expect": "defend@Bu Sri",
+  "context": [
+   [
+    "Bu Dewi",
+    "defend",
+    "Bu Sri"
+   ]
+  ]
+ },
+ {
+  "text": "dia pasti bandarnya",
+  "expect": "accuse@Bu Sri",
+  "context": [
+   [
+    "Bu Dewi",
+    "accuse",
+    "Bu Sri"
+   ]
+  ]
+ },
+ {
+  "text": "apa buktinya?",
+  "expect": "ask@Bu Dewi/why",
+  "context": [
+   [
+    "Bu Dewi",
+    "accuse",
+    "Bu Sri"
+   ]
+  ]
+ },
+ {
+  "text": "kok kamu nuduh aku sih",
+  "expect": "deny@Bu Dewi",
+  "context": [
+   [
+    "Bu Dewi",
+    "accuse",
+    "ME"
+   ]
+  ]
+ },
+ {
+  "text": "gak lah, aku bersih",
+  "expect": "deny@Bu Dewi",
+  "context": [
+   [
+    "Bu Dewi",
+    "accuse",
+    "ME"
+   ]
+  ]
+ },
+ {
+  "text": "kamu tuh yang mencurigakan",
+  "expect": "accuse@Bu Dewi",
+  "context": [
+   [
+    "Bu Dewi",
+    "accuse",
+    "ME"
+   ]
+  ]
+ },
+ {
+  "text": "bu dewi bohong, semalam aku di rumah",
+  "expect": "accuse@Bu Dewi",
+  "context": [
+   [
+    "Bu Dewi",
+    "report",
+    "ME",
+    true
+   ]
+  ]
+ },
+ {
+  "text": "keluarin bu lilis sama bu wati",
+  "expect": "accuse@Bu Lilis"
+ },
+ {
+  "text": "aku pilih bu endah",
+  "expect": "accuse@Bu Endah"
+ },
+ {
+  "text": "bu ratna sandalnya merah tuh",
+  "expect": "accuse@Bu Ratna"
+ },
+ {
+  "text": "ya ampun kas tinggal dikit",
+  "expect": "chat"
+ },
+ {
+  "text": "ayo ibu ibu fokus cari bandarnya",
+  "expect": "chat"
+ },
+ {
+  "text": "bu sri gimana?",
+  "expect": "ask@Bu Sri/opinion"
+ }
+]

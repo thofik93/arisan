@@ -227,6 +227,7 @@ details[open] summary{margin-bottom:8px}
 .profile .nm{background:none;border:0;padding:0;color:var(--fg);font-weight:800;text-align:left;font-size:16px;text-decoration:underline dotted;text-underline-offset:3px}
 .bottom.stack{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .bottom.stack .primary{grid-column:1 / -1}
+.bottom.stack > :nth-child(2):last-child{grid-column:1 / -1}
 @media (prefers-reduced-motion:reduce){.toast,.opt .vbar i{transition:none}}
 </style>
 </head>
@@ -420,6 +421,102 @@ async function loadSponsors(){
   }catch(e){/* offline: pakai daftar terakhir */}
 }
 
+/* ================= OTAK YANG BELAJAR =================
+   brain.json dilatih mingguan dari catatan permainan pemain yang setuju (lihat LEARNING.md).
+   Isinya hanya data: slang baru, model kata (naive Bayes) untuk pesan yang tidak tertangkap aturan,
+   dan "gelagat" pemain manusia yang bandar. Semua dibatasi supaya file yang rusak tidak bisa merusak game. */
+const BRAIN_URL='https://thofik93.github.io/arisan/brain.json';
+const LEARN_API='';// alamat server Cloudflare, diisi setelah server aktif
+const REC_V=1;
+const NB_CLASSES=['accuse','defend','deny','question','ask_alibi','ask_why','ask_role','greet','laugh','chat'];
+const TELL_KEYS=['acc','acc2','def','deny','quiet','claim','ask'];
+let BRAIN=null,SLANG_LEARNED=[];
+const isNative=()=>{const C=window.Capacitor;return !!(C&&C.isNativePlatform&&C.isNativePlatform());};
+function validBrain(j){
+  if(!j||typeof j!=='object'||typeof j.version!=='number')return null;
+  const num=x=>typeof x==='number'&&isFinite(x);
+  const out={version:j.version,slang:[],nb:null,tells:null};
+  if(Array.isArray(j.slang))out.slang=j.slang.filter(x=>Array.isArray(x)&&/^[a-z]{2,20}$/.test(x[0])&&/^[a-z ]{2,30}$/.test(x[1])).slice(0,300);
+  if(j.nb&&Array.isArray(j.nb.classes)&&j.nb.prior&&j.nb.w&&typeof j.nb.w==='object'){
+    const classes=j.nb.classes.filter(c=>NB_CLASSES.includes(c)&&num(j.nb.prior[c]));
+    if(classes.length>=2)out.nb={classes,prior:j.nb.prior,w:j.nb.w,min:Math.max(.6,Math.min(.99,num(j.nb.min)?j.nb.min:.85))};
+  }
+  if(j.tells&&typeof j.tells==='object'){out.tells={};for(const k of TELL_KEYS)if(num(j.tells[k]))out.tells[k]=Math.max(.6,Math.min(1.6,j.tells[k]));}
+  return out;
+}
+function applyBrain(){SLANG_LEARNED=(BRAIN&&BRAIN.slang||[]).map(([a,b])=>[new RegExp('\\b'+a+'\\b','g'),b]);}
+async function loadBrain(){
+  BRAIN=validBrain(store.get('brain',null));applyBrain();
+  if(location.protocol==='file:'&&!isNative())return;
+  try{
+    const r=await fetch(isNative()?BRAIN_URL:'brain.json',{cache:'no-cache'});if(!r.ok)return;
+    const j=validBrain(await r.json());if(j){store.set('brain',j);BRAIN=j;applyBrain();}
+  }catch(e){/* offline: pakai otak terakhir */}
+}
+/* Model kata: menebak maksud pesan yang tidak tertangkap aturan */
+function nbTokens(words,ments){
+  const w=words.map((x,i)=>ments.some(m=>m.i===i)?'xp':x).filter(x=>x&&!/^[,.!;?]$/.test(x));
+  const out=[...w];for(let i=0;i+1<w.length;i++)out.push(w[i]+'_'+w[i+1]);return out;
+}
+function nbGuess(tokens){
+  const nb=BRAIN&&BRAIN.nb;if(!nb)return null;
+  const sc={};let known=0;
+  for(const c of nb.classes)sc[c]=nb.prior[c];
+  for(const t of tokens){const w=nb.w[t];if(!w||typeof w!=='object')continue;known++;for(const c of nb.classes)sc[c]+=typeof w[c]==='number'?w[c]:-12;}
+  if(!known)return null;
+  const mx=Math.max(...Object.values(sc));let z=0;for(const c in sc)z+=Math.exp(sc[c]-mx);
+  const best=nb.classes.reduce((a,b)=>sc[b]>sc[a]?b:a);
+  return 1/z>=nb.min?{cls:best,p:1/z}:null;
+}
+/* Gelagat: bot belajar dari permainan sungguhan seperti apa pemain manusia yang jadi bandar */
+function humanTellsToday(me){
+  const hs=(G.rec&&G.rec.human||[]).filter(h=>h.d===G.day),c=l=>hs.filter(h=>h.l===l).length;
+  return{acc:c('accuse')>=1,acc2:c('accuse')>=2,def:c('defend')>=1,deny:c('deny')+c('swear')>=1,quiet:hs.length===0,claim:c('claimBend')>=1,ask:hs.some(h=>/^ask_/.test(h.l))};
+}
+function applyTells(){
+  const me=human(),t=BRAIN&&BRAIN.tells;
+  if(!t||!me||!me.alive||G.mode!=='bot'||G.tellsDay===G.day)return;
+  G.tellsDay=G.day;
+  const f=humanTellsToday(me);let lr=1;
+  for(const k of TELL_KEYS)if(f[k]&&t[k])lr*=t[k];
+  lr=Math.max(.6,Math.min(1.6,lr));
+  for(const v of alive())if(!v.human&&v.role!=='bandar')mulBelief(v,me.id,lr);
+}
+/* Catatan permainan: hanya dikirim kalau pemain setuju. Nama diganti penanda, tanpa ID perangkat. */
+function recordGame(result){
+  if(!G||!G.rec||G.rec.sent)return null;
+  G.rec.sent=true;
+  return{...G.rec,sent:undefined,result,day:G.day,winner:G.winner,dur:Math.round((Date.now()-G.rec.start)/1000),start:undefined,
+    players:G.players.map(p=>({role:p.role,bot:p.bot||null,human:!!p.human,alive:p.alive,out:p.kickedDay||null})),
+    votes:G.votes.map(v=>({d:v.day,k:v.kicked,v:v.votes})),
+    msgs:G.allMsgs.filter(m=>m.from!=null&&!pl(m.from).human).slice(0,400).map(m=>({d:m.day,f:m.from,y:m.type,t:m.target??null,v:m.value??null,c:m.core||null}))};
+}
+function queueRecord(rec){
+  if(!rec)return;
+  const box=store.get('outbox',[]);box.push(rec);store.set('outbox',box.slice(-20));flushOutbox();
+}
+async function flushOutbox(){
+  if(!LEARN_API||P.share!==true)return;
+  const box=store.get('outbox',[]);
+  while(box.length){
+    try{const r=await fetch(LEARN_API+'/v1/games',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(box[0]),keepalive:true});if(!r.ok&&r.status<500){box.shift();continue;}if(!r.ok)break;box.shift();}
+    catch(e){break;}
+  }
+  store.set('outbox',box);
+}
+function shareGame(result){
+  const rec=recordGame(result);if(!rec)return;
+  if(P.share===true)return queueRecord(rec);
+  if(P.share===false||result==='quit')return;
+  // pertama kali: tanya izin di layar akhir
+  setTimeout(()=>openSheet(`<h3>Bantu ibu-ibu bot makin pintar?</h3>
+    <p class="small">Kirim catatan permainan ini secara anonim: hasil, voting, dan pesan yang kamu ketik. Nama diganti penanda, tanpa akun dan tanpa ID perangkat. Dari catatan semua pemain, bot belajar memahami bahasamu dan membaca gelagat.</p>
+    <p class="small muted">Bisa dimatikan kapan saja di menu ⋯.</p>
+    <div class="bottom stack" style="border:0;padding:0;background:none"><button class="primary" data-act="yes">Ya, bantu</button><button data-act="no">Tidak</button></div>`,b=>{
+      if(!b.dataset.act)return;P.share=b.dataset.act==='yes';saveP();closeSheet();if(P.share)queueRecord(rec);
+    }),1600);
+}
+
 /* ================= avatar ================= */
 function avatarSVG(p,size){
   const s=size||40,skin=p.skin||'#e0ac7e',hc=p.hijab||'#a3324f',out=p.alive===false;
@@ -555,6 +652,7 @@ function newGame(opts){
      night:{actions:{},results:{}},news:[],msgs:[],allMsgs:[],bendClaimers:[],votes:[],kicked:[],
      winner:null,reason:'',humanStats:{statements:0,votedBandar:0,votes:0,framed:false},token:0,
      used:new Set(),shotDone:new Set(),heat:0,newsLog:[]};
+  if(opts.mode==='bot')G.rec={v:REC_V,brain:BRAIN?BRAIN.version:0,n,daily:!!opts.daily,start:Date.now(),human:[]};
   // alur sinetron: sepasang musuh bebuyutan dan sepasang besti di antara bot
   const botIds=shuffle(players.filter(p=>!p.human).map(p=>p.id));
   if(botIds.length>=4){
@@ -1513,6 +1611,7 @@ function lev1(a,b){ // jarak edit paling banyak 1
 function normText(text){
   let s=' '+String(text).toLowerCase().replace(/(\p{L})\1{2,}/gu,'$1').replace(/[^\p{L}\p{N}\s?,.!;]/gu,' ').replace(/([?,.!;])/g,' $1 ').replace(/\s+/g,' ')+' ';
   for(const [re,to] of SLANG)s=s.replace(re,to);
+  for(const [re,to] of SLANG_LEARNED)s=s.replace(re,to);
   return s.replace(/\s+/g,' ');
 }
 /* Konteks obrolan hari ini: siapa yang terakhir bicara, siapa yang menuduhku, sikap terakhir soal orang lain */
@@ -1528,13 +1627,9 @@ function chatContext(){
   const stanceOf=m=>!m?null:hostile(m)?'accuse':'defend';
   return{last,atMe,claim,stance,stanceDir:stanceOf(stance),you:(toMe||atMe||last||{}).from??null,third:stance?stance.target:(last&&last.target!=null&&last.target!==me.id?last.target:null)};
 }
-function parseHuman(text){
-  const me=human(),ctx=chatContext();
-  const s=normText(text),has=re=>re.test(s);
-  const words=s.trim().split(' ');
-  // nama yang disebut (dengan posisi). Salah ketik satu huruf diterima kalau didahului "bu"/"jeng".
-  const ments=[];
-  const others=alive().filter(p=>p.id!==me.id);
+/* Nama yang disebut (dengan posisi). Salah ketik satu huruf diterima kalau didahului "bu"/"jeng". */
+function findMentions(words){
+  const me=human(),ments=[],others=alive().filter(p=>p.id!==me.id);
   words.forEach((w,i)=>{
     if(w.length<3)return;
     const hon=i>0&&/^(bu|jeng|si|mbak|bunda|tante)$/.test(words[i-1]);
@@ -1543,6 +1638,20 @@ function parseHuman(text){
       if(ok){if(!ments.some(m=>m.id===p.id&&Math.abs(m.i-i)<=2))ments.push({id:p.id,i});break;}
     }
   });
+  return ments;
+}
+/* Teks yang sudah dirapikan dan disamarkan untuk catatan belajar: nama jadi <p3>, namamu jadi <me>, angka panjang dibuang */
+function anonNorm(text){
+  const words=normText(text).trim().split(' '),ments=findMentions(words),me=human();
+  const mine=me?nameKeys(me):[];
+  return words.map((w,i)=>{const m=ments.find(x=>x.i===i);if(m)return'<p'+m.id+'>';if(mine.includes(w))return'<me>';if(/\d{4,}/.test(w))return'<num>';return w;})
+    .filter((w,i,a)=>!(w==='bu'&&/^<(p\d+|me)>$/.test(a[i+1]||''))).join(' ').slice(0,200);
+}
+function parseHuman(text){
+  const me=human(),ctx=chatContext();
+  const s=normText(text),has=re=>re.test(s);
+  const words=s.trim().split(' ');
+  const ments=findMentions(words);
   const vocative=ments.length&&ments[0].i<=1&&(words[ments[0].i+1]===','||words.length<=ments[0].i+1||/^(kamu|kenapa|kok|semalam|ke|menurut|peran|bandar|gimana|\?)$/.test(words[ments[0].i+1]||''))?ments[0].id:null;
   const youId=vocative!=null?vocative:ctx.you;
   const isQ=has(/\?/)||has(/\b(siapa|kenapa|gimana|ke mana|di mana|ngapain|apa bener|apa iya|bukti\w*|alasan\w*)\b/)||/\b(ya|kah|bukan)\s*\?*\s*$/.test(s)&&has(/\?/);
@@ -1657,8 +1766,19 @@ function parseHuman(text){
   }
   if(has_cry)return res('cry');
   if(has(/\b(dasar|tega|munafik|sialan|bodoh|bego|goblok|norak|nyebelin)\b/))return res('angry',{target:ments[0]?ments[0].id:null});
+  if(has(W_ACCUSE)&&has(/\bdia\b/)&&ctx.third!=null&&!ments.length)return res('accuse',{target:ctx.third});
+  // aturan tidak menangkap maksudnya: tanya model kata hasil belajar dari pemain lain
+  const g=nbGuess(nbTokens(words,ments));
+  if(g&&g.cls!=='chat'){
+    const t=ments[0]?ments[0].id:null,L={learned:Math.round(g.p*100)/100};
+    if((g.cls==='accuse'||g.cls==='defend')&&(t??ctx.third)!=null)return res(g.cls,{target:t??ctx.third,...L});
+    if(g.cls==='deny')return res('deny',{target:ctx.atMe?ctx.atMe.from:null,...L});
+    if(g.cls==='question')return res('question',L);
+    if(/^ask_/.test(g.cls)&&(t??youId)!=null)return res('ask',{ask:g.cls.slice(4),addressee:t??youId,target:g.cls==='ask_why'?null:(t??youId),...L});
+    if(g.cls==='greet')return res('greet',L);
+    if(g.cls==='laugh')return res('laugh',L);
+  }
   if(ments.length)return res('mention',{target:ments[0].id});
-  if(has(W_ACCUSE)&&has(/\bdia\b/)&&ctx.third!=null)return res('accuse',{target:ctx.third});
   return res('chat');
 }
 
@@ -1757,7 +1877,7 @@ function simulate(games,n){
   R=Math.random;
   return{wargaWin:warga/games,avgDays:days/games};
 }
-window.ArisanSim={simulate,TUNE,debug:{get G(){return G;},get chat(){return chat;},newGame,followUps,deductions,genText,parseHuman,compose,textFor,evidence,prob,pubSusp,alive,botNightAction,resolveNight,planSpeakers,botSpeak,applyMsg,botVote,tally}};
+window.ArisanSim={simulate,TUNE,debug:{get G(){return G;},get chat(){return chat;},setBrain(j){BRAIN=validBrain(j);applyBrain();return BRAIN;},anonNorm,nbGuess,recordGame,newGame,followUps,deductions,genText,parseHuman,compose,textFor,evidence,prob,pubSusp,alive,botNightAction,resolveNight,planSpeakers,botSpeak,applyMsg,botVote,tally}};
 
 /* ================= komponen: lembar bawah, menu permainan, tips sekali tampil ================= */
 function closeSheet(){const s=document.getElementById('sheet');if(s)s.remove();}
@@ -1773,15 +1893,17 @@ function openGameMenu(){
   const draw=()=>`<h3>Menu</h3>
     <div><span class="small muted">Kecepatan obrolan</span><div class="seg">${Object.entries(SPEEDS).map(([k,v])=>`<button data-speed="${k}" class="${k===chatSpeed?'on':''}">${v.label}</button>`).join('')}</div></div>
     <button data-act="sound">${muted?'🔇 Suara mati (nyalakan)':'🔊 Suara nyala (matikan)'}</button>
+    <button data-act="share">${P.share?'🧠 Bantu bot belajar: nyala':'🧠 Bantu bot belajar: mati'}</button>
     <details><summary>Cara main</summary>${howTo()}</details>
     ${inGame?'<button data-act="quit" class="ghost">Keluar ke beranda</button>':''}
     <button data-act="close" class="primary">Tutup</button>`;
   const el=openSheet(draw(),(b)=>{
     if(b.dataset.speed){chatSpeed=b.dataset.speed;store.set('chatSpeed',chatSpeed);el.querySelector('.sheet').innerHTML='<span class="grab"></span>'+draw();return;}
+    if(b.dataset.act==='share'){P.share=!P.share;saveP();if(P.share)flushOutbox();else store.set('outbox',[]);el.querySelector('.sheet').innerHTML='<span class="grab"></span>'+draw();return;}
     if(b.dataset.act==='sound'){muted=!muted;store.set('muted',muted);el.querySelector('.sheet').innerHTML='<span class="grab"></span>'+draw();return;}
     if(b.dataset.act==='close')return closeSheet();
     if(b.dataset.act==='quit'){el.querySelector('.sheet').innerHTML=`<span class="grab"></span><h3>Keluar dari permainan?</h3><p class="small muted">Permainan ini tidak disimpan.</p><div class="bottom stack" style="border:0;padding:0;background:none"><button data-act="quitYes" class="primary">Ya, keluar</button><button data-act="close">Batal</button></div>`;return;}
-    if(b.dataset.act==='quitYes'){closeSheet();app.onclick=null;homeScreen();}
+    if(b.dataset.act==='quitYes'){closeSheet();app.onclick=null;if(G&&G.mode==='bot')shareGame('quit');homeScreen();}
   });
 }
 /* Tips muncul sekali saja, tepat saat dibutuhkan */
@@ -2212,6 +2334,10 @@ function sendHuman(raw){
   else if(hm.type==='claimRole'&&hm.role==='bendahara'){m.type='claimRole';}
   else if(hm.type==='ask'){m.target=hm.target??hm.addressee;}
   chat.waitDefense=0;
+  if(G.rec&&G.rec.human.length<60){
+    const lab=hm.type==='ask'?'ask_'+hm.ask:hm.type;
+    G.rec.human.push({d:G.day,n:anonNorm(text),l:lab,t:hm.target??null,a:hm.addressee??null,g:hm.learned||null});
+  }
   applyMsg(m);addHeat(m);
   // sikap tambahan dalam kalimat yang sama ("Bu A bukan bandar, Bu B yang bandar")
   for(const e of hm.extra||[])if(e.target!=null&&pl(e.target).alive)applyMsg({from:me.id,type:e.type,target:e.target,noFollow:true});
@@ -2254,8 +2380,18 @@ function sendHuman(raw){
   document.getElementById('tgts').hidden=true;
   const left=MAX_SEND-chat.sent,info=document.getElementById('sendInfo');
   document.getElementById('send').textContent=`Kirim · ${Math.max(0,left)}`;
-  // pesan yang tidak menyebut siapa pun: beri petunjuk, dua kali saja
-  if(hm.type==='chat'&&(P.tipChat||0)<2){P.tipChat=(P.tipChat||0)+1;saveP();info.textContent='Tip: sebut nama orangnya supaya ibu-ibu paham, misalnya "aku curiga sama Bu Ratna".';info.hidden=false;}
+  // bot tidak paham tapi ada nama yang disebut: tawarkan pilihan maksud. Pilihan ini juga jadi data belajar.
+  const guessT=hm.type==='mention'?hm.target:null;
+  if(guessT!=null&&left>0){
+    const N=pl(guessT).name,ri=G.rec?G.rec.human.length-1:-1;
+    info.innerHTML=`Maksudmu? <button class="small" data-mean="accuse">Curiga ${esc(N)}</button> <button class="small" data-mean="defend">Bela ${esc(N)}</button> <button class="small" data-mean="ask_alibi">Tanya ${esc(N)}</button>`;
+    info.hidden=false;
+    info.onclick=e=>{const b=e.target.closest('[data-mean]');if(!b)return;
+      if(G.rec&&G.rec.human[ri])G.rec.human[ri].x=b.dataset.mean;
+      info.hidden=true;info.onclick=null;chat.sent=Math.max(0,chat.sent-1);
+      sendHuman({accuse:`Aku curiga sama ${N}.`,defend:`Aku yakin ${N} bukan bandar.`,ask_alibi:`${N}, semalam kamu ke mana?`}[b.dataset.mean]);};
+  }
+  else if(hm.type==='chat'&&(P.tipChat||0)<2){P.tipChat=(P.tipChat||0)+1;saveP();info.textContent='Tip: sebut nama orangnya supaya ibu-ibu paham, misalnya "aku curiga sama Bu Ratna".';info.hidden=false;}
   else info.hidden=true;
   if(left<=0){info.textContent='Jatah pesanmu hari ini habis. Simak yang lain, lalu lanjut ke sidang.';info.hidden=false;document.getElementById('send').disabled=true;document.getElementById('msgIn').disabled=true;}
 }
@@ -2263,6 +2399,7 @@ function sendHuman(raw){
 /* ---------- voting (mode bot) ---------- */
 function startVote(only,revote){
   if(screen!=='day'&&screen!=='tie')return;
+  applyTells();
   screen='vote';G.token++;
   const me=human();
   const pool=only?only.map(pl):alive();
@@ -2393,6 +2530,7 @@ function kickScreen(t,over){
 /* ---------- akhir permainan ---------- */
 function endScreen(){
   screen='end';
+  if(G.mode==='bot')shareGame('end');
   const me=human();
   const pass=G.mode==='pass';
   let html='',share='';
@@ -2678,6 +2816,8 @@ function achScreen(){
 })();
 
 loadSponsors();
+loadBrain();
+flushOutbox();
 homeScreen();
 addEventListener('hashchange',()=>{loadSponsors().then(()=>{if(screen==='home')homeScreen();});});
 })();
