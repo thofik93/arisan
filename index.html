@@ -381,6 +381,7 @@ function applySponsorCosmetics(){
 async function loadSponsors(){
   if(sponsorDemo()){SPONSORS=DEMO_SPONSORS;applySponsorCosmetics();return;}
   SPONSORS=activeSponsors(store.get('sponsors',[]));applySponsorCosmetics();
+  const C0=window.Capacitor;if(location.protocol==='file:'&&!(C0&&C0.isNativePlatform&&C0.isNativePlatform()))return;
   try{
     const C=window.Capacitor,native=!!(C&&C.isNativePlatform&&C.isNativePlatform());
     const r=await fetch(native?SPONSOR_URL:'sponsors.json',{cache:'no-cache'});
