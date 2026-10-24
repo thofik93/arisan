@@ -1,0 +1,1305 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>ARISAN</title>
+<meta name="description" content="Game social deduction ala ibu-ibu arisan. Siapa Bandar Bodong yang mau kabur bawa uang kas? Main lawan bot atau oper HP bareng teman.">
+<meta name="theme-color" content="#4b1424">
+<meta property="og:title" content="ARISAN">
+<meta property="og:description" content="Siapa yang mau kabur bawa uang kas arisan? Main langsung di browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234b1424'/%3E%3Crect x='10' y='14' width='44' height='30' rx='10' fill='%23fff1e6'/%3E%3Cpath d='M20 42 L18 54 L30 43 Z' fill='%23fff1e6'/%3E%3Ccircle cx='22' cy='29' r='4' fill='%23f2b632'/%3E%3Ccircle cx='32' cy='29' r='4' fill='%23f2b632'/%3E%3Ccircle cx='42' cy='29' r='4' fill='%23f2b632'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Layout: aplikasi satu layar setinggi HP. Header tetap di atas, isi bergulir, aksi utama menempel di bawah dalam jangkauan jempol.
+   Satu tema, disengaja: marun kain batik, emas kotak kas, dan pastel kue lapis untuk gelembung chat. */
+:root{
+  --maroon:#4b1424;
+  --maroon-deep:#350c19;
+  --panel:#62203a;
+  --line:#7c3550;
+  --fg:#fff1e6;
+  --muted:#e2bcc6;
+  --emas:#f2b632;
+  --pandan:#7cc49a;
+  --lapis:#f49cb0;
+  --danger:#ff6b6b;
+  --paper:#fff6ec;
+  --ink:#2b1a1f;
+  --ink-muted:#7a5f66;
+  --display:"Baloo 2", system-ui, -apple-system, Roboto, "Noto Sans", sans-serif;
+  --body:"Nunito", system-ui, -apple-system, Roboto, "Noto Sans", sans-serif;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;background:var(--maroon);color:var(--fg)}
+body{font-family:var(--body);font-size:16px;line-height:1.45;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+#app{
+  height:100%;max-width:560px;margin:0 auto;display:flex;flex-direction:column;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+.top{flex:none;display:flex;align-items:center;gap:10px;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line);background:var(--maroon-deep)}
+.top h1,.top h2{font-family:var(--display);font-weight:800;margin:0;line-height:1.05}
+.top h2{font-size:1.15rem}
+.top .sub{font-size:12px;color:var(--muted)}
+.top .grow{flex:1;min-width:0}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px}
+.bottom{flex:none;display:flex;gap:8px;flex-wrap:wrap;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-top:1px solid var(--line);background:var(--maroon-deep)}
+.bottom .primary{flex:1 1 auto}
+
+h1.logo{font-family:var(--display);font-weight:800;font-size:clamp(3rem,15vw,4.4rem);letter-spacing:.04em;line-height:.9;margin:0;color:var(--emas)}
+h2{font-family:var(--display);font-weight:800;font-size:1.45rem;line-height:1.15;margin:0;text-wrap:balance}
+h3{font-family:var(--display);font-weight:800;font-size:1.05rem;margin:0}
+p{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--emas)}
+
+button{
+  font:inherit;font-weight:800;color:var(--fg);background:var(--panel);border:2px solid var(--line);
+  border-radius:14px;padding:11px 16px;cursor:pointer;touch-action:manipulation;
+}
+button:hover{border-color:var(--muted)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--emas);border-color:var(--emas);color:var(--ink)}
+button.ghost{background:transparent}
+button.small{padding:7px 12px;font-size:14px;border-radius:11px}
+button:focus-visible,input:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+input[type=text]{font:inherit;font-size:17px;color:var(--ink);background:var(--paper);border:2px solid var(--line);border-radius:12px;padding:10px 12px;width:100%}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;gap:10px;align-items:center}
+.row.wrap{flex-wrap:wrap}
+.between{justify-content:space-between}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.menu{display:flex;flex-direction:column;gap:10px}
+.menu button{text-align:left;display:flex;flex-direction:column;gap:2px;padding:14px 16px}
+.menu button b{font-family:var(--display);font-size:1.15rem}
+.menu button span{font-weight:600;font-size:14px;color:var(--muted)}
+.menu button.primary span{color:#5a3a10}
+.bar{height:8px;border-radius:4px;background:var(--maroon-deep);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--emas)}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:800;padding:2px 9px;border-radius:999px;background:var(--maroon-deep);border:1px solid var(--line);white-space:nowrap}
+.kue{color:var(--lapis)}
+
+/* avatar */
+.av{flex:none;display:inline-block;position:relative;line-height:0}
+.av svg{display:block}
+.av .sandal{position:absolute;right:-2px;bottom:-2px;width:14px;height:14px;border-radius:50%;border:2px solid var(--maroon-deep)}
+.av.out svg{filter:grayscale(1) opacity(.45)}
+
+/* pilih orang */
+.people{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+.person{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px;border-radius:14px;background:var(--panel);border:2px solid var(--line);color:var(--fg);font-weight:700;font-size:14px;text-align:center}
+.person.sel{border-color:var(--emas);background:var(--maroon-deep)}
+.person .tag{font-size:11px;color:var(--muted);font-weight:700}
+.person[disabled]{opacity:.4}
+
+/* kartu peran */
+.rolecard{border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;background:var(--paper);color:var(--ink)}
+.rolecard .rname{font-family:var(--display);font-weight:800;font-size:1.9rem;line-height:1}
+.rolecard.bandar{background:#2b0d16;color:var(--fg);border:2px solid var(--danger)}
+.rolecard.bandar .rname{color:var(--danger)}
+.result{border-radius:14px;padding:12px 14px;background:var(--paper);color:var(--ink);font-weight:700}
+.result.bad{background:#ffd9d9;color:#7a1010}
+.result.good{background:#d7f3e1;color:#14532d}
+
+/* chat */
+.chathead{flex:none;display:flex;flex-direction:column;gap:6px;padding-block:8px 10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:var(--maroon-deep);border-bottom:1px solid var(--line)}
+.kas{display:flex;justify-content:space-between;gap:8px;font-weight:800;font-size:14px}
+.kas .v{color:var(--emas);font-variant-numeric:tabular-nums}
+.kasbar{position:relative;height:8px;border-radius:4px;background:#2b0d16;overflow:hidden}
+.kasbar i{position:absolute;left:0;top:0;bottom:0;background:var(--emas)}
+.kasbar b{position:absolute;top:0;bottom:0;width:2px;background:var(--danger)}
+.members{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.feed{flex:1;overflow-y:auto;padding-block:12px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:8px;background:#3d1020}
+.msg{display:flex;gap:8px;align-items:flex-end;max-width:88%}
+.msg .bubble{background:var(--paper);color:var(--ink);border-radius:14px 14px 14px 4px;padding:7px 11px;font-size:15px;min-width:0}
+.msg .who{display:block;font-size:12px;font-weight:800;margin-bottom:1px}
+.msg .who small{font-weight:700;color:var(--ink-muted)}
+.msg.me{align-self:flex-end;flex-direction:row-reverse}
+.msg.me .bubble{background:#ffe3a3;border-radius:14px 14px 4px 14px}
+.msg.claim .bubble{border:2px solid var(--emas)}
+.sys{align-self:center;max-width:94%;text-align:center;background:rgba(0,0,0,.28);color:var(--fg);font-size:13px;font-weight:700;padding:6px 12px;border-radius:12px}
+.sys.news{background:#2b0d16;border:1px solid var(--line);text-align:left}
+.sys.alert{background:var(--danger);color:#2b0000}
+.typing{align-self:flex-start;font-size:13px;color:var(--muted);font-style:italic;padding-left:4px}
+.composer{flex:none;display:flex;flex-direction:column;gap:8px;padding-block:10px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));background:var(--maroon-deep);border-top:1px solid var(--line)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.chips button{flex:none;padding:7px 12px;font-size:14px;border-radius:999px}
+.chips button.on{background:var(--emas);color:var(--ink);border-color:var(--emas)}
+.targets{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.targets button{flex:none;display:flex;align-items:center;gap:6px;padding:4px 10px 4px 4px;font-size:13px;border-radius:999px}
+.targets button.on{border-color:var(--emas);background:var(--panel)}
+
+/* voting */
+.poll{display:flex;flex-direction:column;gap:8px}
+.opt{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px 10px;border-radius:14px;background:var(--panel);border:2px solid var(--line);text-align:left;color:var(--fg)}
+.opt.sel{border-color:var(--emas)}
+.opt .vbar{grid-column:2 / 4;height:6px;border-radius:3px;background:var(--maroon-deep);overflow:hidden}
+.opt .vbar i{display:block;height:100%;background:var(--lapis);width:0;transition:width .4s}
+.opt .count{font-weight:800;font-variant-numeric:tabular-nums}
+.voters{grid-column:2 / 4;display:flex;gap:3px;flex-wrap:wrap}
+
+.handoff{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px}
+.handoff .big{font-family:var(--display);font-weight:800;font-size:2rem;line-height:1.1}
+.timer{font-family:var(--display);font-weight:800;font-size:3.2rem;color:var(--emas);font-variant-numeric:tabular-nums;text-align:center;line-height:1}
+
+.endbanner{border-radius:18px;padding:18px;text-align:center;display:flex;flex-direction:column;gap:6px}
+.endbanner.win{background:var(--pandan);color:var(--ink)}
+.endbanner.lose{background:#2b0d16;border:2px solid var(--danger)}
+.endbanner .big{font-family:var(--display);font-weight:800;font-size:1.8rem;line-height:1.05}
+.rolelist{display:flex;flex-direction:column;gap:6px}
+.rolelist div{display:flex;align-items:center;gap:10px;font-weight:700}
+.rolelist div > span:nth-child(2){flex:1;min-width:0}
+.rolelist .r{margin-left:auto;font-size:13px;font-weight:800;white-space:nowrap;flex:none}
+.rolelist .r.bandar{color:var(--danger)}
+.reward{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;text-align:center}
+.reward div{background:var(--maroon-deep);border:1px solid var(--line);border-radius:12px;padding:8px}
+.reward b{display:block;font-family:var(--display);font-size:1.3rem}
+.kocok{display:flex;flex-direction:column;gap:8px;align-items:center;text-align:center}
+.kocok .slot{font-family:var(--display);font-weight:800;font-size:1.5rem;padding:10px 16px;border-radius:14px;background:var(--paper);color:var(--ink);min-width:70%}
+.kocok .slot.won{background:var(--emas)}
+.share{font-size:13px;white-space:pre-wrap;background:var(--maroon-deep);border:1px dashed var(--line);border-radius:12px;padding:10px;user-select:all}
+.ach{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+.ach.locked{opacity:.5}
+.ach .ico{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--maroon-deep);font-family:var(--display);font-weight:800;color:var(--emas)}
+.item{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+.swatch{width:30px;height:30px;border-radius:9px;border:2px solid var(--fg)}
+.toast{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translateX(-50%);max-width:calc(100% - 32px);z-index:50;background:var(--paper);color:var(--ink);font-weight:800;font-size:14px;padding:8px 14px;border-radius:999px;box-shadow:0 6px 20px rgba(0,0,0,.35);opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+details{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+details summary{cursor:pointer;font-weight:800}
+details[open] summary{margin-bottom:8px}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.stepper{display:flex;align-items:center;gap:10px}
+.stepper b{font-family:var(--display);font-size:1.6rem;min-width:2ch;text-align:center}
+@media (prefers-reduced-motion:reduce){.toast,.opt .vbar i{transition:none}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+<script>
+(function(){
+'use strict';
+
+/* ================= util ================= */
+const app=document.getElementById('app');
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rp=n=>'Rp'+Math.round(n).toLocaleString('id-ID');
+const jt=n=>'Rp'+(n/1e6).toLocaleString('id-ID',{minimumFractionDigits:1,maximumFractionDigits:1})+' jt';
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const store={
+  get(k,d){try{const v=localStorage.getItem('arisan:'+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
+  set(k,v){try{localStorage.setItem('arisan:'+k,JSON.stringify(v));}catch(e){}}
+};
+function mulberry32(a){a>>>=0;return()=>{a=(a+0x6d2b79f5)>>>0;let t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;};}
+let R=Math.random;
+const rnd=()=>R();
+const ri=n=>Math.floor(R()*n);
+const pickR=a=>a[ri(a.length)];
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=ri(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;}
+let toastT=null;
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600);}
+function buzz(){try{const C=window.Capacitor;if(C&&C.isNativePlatform&&C.isNativePlatform()&&C.Plugins.Haptics)C.Plugins.Haptics.impact({style:'MEDIUM'});else if(navigator.vibrate)navigator.vibrate(60);}catch(e){}}
+const todayKey=(d=new Date())=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const DAILY_EPOCH=new Date(2026,9,24);
+const dailyNo=()=>Math.floor((new Date(new Date().toDateString())-DAILY_EPOCH)/864e5)+1;
+
+/* ================= audio ================= */
+let AC=null,muted=store.get('muted',false);
+function unlockAudio(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){AC=null;}}if(AC&&AC.state==='suspended')AC.resume();}
+function tone(f,d,type,v,t0){if(!AC||muted)return;const t=AC.currentTime+(t0||0),o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+d+.02);}
+const sfx={
+  pop(){tone(880,.06,'sine',.06);},
+  send(){tone(660,.05,'sine',.07);tone(990,.07,'sine',.06,.05);},
+  gasp(){tone(330,.25,'sawtooth',.06);tone(250,.3,'sawtooth',.05,.12);},
+  win(){[523,659,784,1046].forEach((f,i)=>tone(f,.18,'square',.06,i*.1));},
+  lose(){[392,330,262].forEach((f,i)=>tone(f,.25,'triangle',.08,i*.15));},
+  shake(){for(let i=0;i<10;i++)tone(1200+Math.random()*800,.04,'square',.03,i*.08);}
+};
+
+/* ================= data ================= */
+const BOTS=[
+  {name:'Bu Ratna',pers:'julid',hijab:'#c2185b',skin:'#e0ac7e'},
+  {name:'Bu Yuyun',pers:'polos',hijab:'#4fc3f7',skin:'#f1c27d'},
+  {name:'Bu Hajjah Siti',pers:'bijak',hijab:'#2e7d32',skin:'#c68642'},
+  {name:'Bu Lilis',pers:'sosialita',hijab:'#6d3b1f',skin:'#f3d2b3',hair:true},
+  {name:'Bu Endah',pers:'pendiam',hijab:'#8d6e63',skin:'#d9a066'},
+  {name:'Bu Wati',pers:'kepo',hijab:'#7e57c2',skin:'#e8b88a'},
+  {name:'Bu Dewi',pers:'baper',hijab:'#ef5350',skin:'#f0c8a0'},
+  {name:'Bu Sri',pers:'tegas',hijab:'#37474f',skin:'#b07850'}
+];
+const PERS={
+  julid:    {label:'Julid',    talk:.95,gull:2.0, noise:.12,lie:.65},
+  polos:    {label:'Polos',    talk:.6, gull:1.7, noise:.25,lie:.3},
+  bijak:    {label:'Bijak',    talk:.6, gull:1.15,noise:.06,lie:.7},
+  sosialita:{label:'Sosialita',talk:.8, gull:1.4, noise:.15,lie:.65},
+  pendiam:  {label:'Pendiam',  talk:.35,gull:1.3, noise:.1, lie:.5},
+  kepo:     {label:'Kepo',     talk:.95,gull:1.6, noise:.15,lie:.45},
+  baper:    {label:'Baper',    talk:.75,gull:1.5, noise:.2, lie:.4},
+  tegas:    {label:'Tegas',    talk:.7, gull:1.2, noise:.08,lie:.6},
+  manusia:  {label:'Kamu',     talk:.7, gull:1.4, noise:.15,lie:.5}
+};
+const ROLE={
+  bandar:   {name:'Bandar Bodong',team:'bandar',short:'Bandar',
+             desc:'Kamu mau kabur bawa uang kas. Tiap malam kas otomatis kamu tilep. Kamu juga mengajak satu orang ngerumpi sampai subuh: aksi malamnya gagal, dan besok pagi beredar fitnah tentang dia. Bertahanlah sampai pertemuan terakhir.',
+             act:'Ajak ngerumpi siapa malam ini?'},
+  bendahara:{name:'Bendahara',team:'warga',short:'Bendahara',
+             desc:'Tiap malam kamu mengaudit satu orang dan tahu pasti apakah dia Bandar Bodong. Bagikan hasilnya, tapi hati-hati: bandar bisa pura-pura jadi bendahara juga.',
+             act:'Audit siapa malam ini?'},
+  ketua:    {name:'Bu RT',team:'warga',short:'Bu RT',
+             desc:'Tiap malam kamu menjaga satu orang. Kalau bandar mengajak orang itu ngerumpi, ajakannya ditolak dan fitnahnya langsung kamu klarifikasi. Kamu sendiri terlalu sibuk untuk diajak ngerumpi.',
+             act:'Jaga nama baik siapa malam ini?'},
+  gosip:    {name:'Ratu Gosip',team:'warga',short:'Ratu Gosip',
+             get desc(){return `Tiap malam kamu mencari kabar tentang satu orang. Kabarmu benar ${Math.round(TUNE.gosipAcc*100)}% dari waktu.`;},
+             act:'Cari kabar tentang siapa?'},
+  warga:    {name:'Warga',team:'warga',short:'Warga',
+             get desc(){return `Tiap malam kamu mengintip satu rumah dari jendela. Bandar selalu keluar rumah, tapi peran lain yang beraksi juga keluar. Malam gelap, jadi orang yang keluar hanya terlihat ${Math.round(TUNE.intipSeen*100)}% dari waktu.`;},
+             act:'Intip rumah siapa malam ini?'}
+};
+function roleList(n){const r=['bandar','bendahara'];if(n>=5)r.push('ketua');if(n>=6)r.push('gosip');if(n>=TUNE.twoBandarFrom)r.push('bandar');while(r.length<n)r.push('warga');return r;}
+function roleSummary(n){const c={};for(const r of roleList(n))c[r]=(c[r]||0)+1;return Object.entries(c).map(([r,k])=>`${k}× ${ROLE[r].name}`).join(', ');}
+const GOES_OUT=new Set(['bendahara','ketua','gosip']);
+/* Bandar selalu keluar (menilep kas tiap malam). Peran lain keluar kalau menjalankan aksinya. */
+const wentOut=p=>p.role==='bandar'||(GOES_OUT.has(p.role)&&G.night.actions[p.id]!=null);
+const SANDAL=[['merah','#e53935'],['hijau','#43a047'],['biru','#1e88e5'],['kuning','#fdd835']];
+const KAS_START=10e6;
+/* Angka penyeimbang, disetel lewat simulasi semua-bot (ArisanSim.simulate) */
+const TUNE={maxDay:3,twoBandarFrom:6,majority:false,sandalP:.25,sandalF:2.2,sandalSelfF:3,gosipAcc:.65,intipSeen:.6,intipQuiet:.45,
+  bendLR:5,accuseLR:.5,fakeP:.22,counterP:0,bandwagon:.2,gullPow:1,auditClaimClean:.6};
+
+/* ---------- profil, kosmetik, pangkat ---------- */
+const RANKS=[[0,'Anggota Baru'],[80,'Langganan Arisan'],[250,'Bendahara Teladan'],[600,'Ketua RT'],[1200,'Sesepuh Arisan'],[2200,'Ratu Arisan Se-Kecamatan']];
+const rankIdx=xp=>RANKS.reduce((i,[t],k)=>xp>=t?k:i,0);
+const COSMETICS=[
+  {slot:'hijab',id:'merah',  name:'Kerudung marun',   price:0,  color:'#a3324f'},
+  {slot:'hijab',id:'emas',   name:'Kerudung emas',    price:40, color:'#d4a017'},
+  {slot:'hijab',id:'pandan', name:'Kerudung pandan',  price:40, color:'#3f9b6b'},
+  {slot:'hijab',id:'lapis',  name:'Kerudung lapis',   price:40, color:'#e57a96'},
+  {slot:'hijab',id:'batik',  name:'Kerudung batik',   price:90, color:'#6d3b1f',pattern:true},
+  {slot:'frame',id:'none',   name:'Tanpa bingkai',    price:0},
+  {slot:'frame',id:'emas',   name:'Bingkai emas',     price:60, color:'#f2b632'},
+  {slot:'frame',id:'mutiara',name:'Bingkai mutiara',  price:120,color:'#f5f0e6'},
+  {slot:'title',id:'none',   name:'Tanpa gelar',      price:0,  text:''},
+  {slot:'title',id:'jeng',   name:'Gelar "Jeng"',     price:30, text:'Jeng'},
+  {slot:'title',id:'sultan', name:'Gelar "Sultanah"', price:80, text:'Sultanah'},
+  {slot:'title',id:'detektif',name:'Gelar "Detektif Komplek"',price:150,text:'Detektif Komplek'},
+  {slot:'sticker',id:'sabar',name:'Stiker "Sabar ya Ibu-ibu"',price:25,text:'Sabar ya Ibu-ibu, kita cari bareng-bareng 🙏'},
+  {slot:'sticker',id:'amit', name:'Stiker "Amit-amit"',      price:25,text:'Amit-amit, jangan sampai kas kita raib 😱'},
+  {slot:'sticker',id:'kue',  name:'Stiker "Bawa kue lapis"', price:35,text:'Aku bawa kue lapis ya, biar adem rapatnya 🍰'},
+  {slot:'sticker',id:'tas',  name:'Stiker "Tas baru siapa?"',price:35,text:'Ngomong-ngomong, tas baru siapa itu kemarin? 👀'}
+];
+const ACH=[
+  {id:'detektif',name:'Detektif Komplek',desc:'Menang sebagai warga dan bandar ketahuan di pertemuan pertama.'},
+  {id:'licin',   name:'Bandar Licin',    desc:'Menang sebagai bandar tanpa sekali pun dapat suara.'},
+  {id:'audit',   name:'Bendahara Jeli',  desc:'Mengaudit bandar yang sebenarnya.'},
+  {id:'fitnah',  name:'Korban Fitnah',   desc:'Kena fitnah tapi tetap di grup sampai akhir.'},
+  {id:'ember',   name:'Mulut Ember',     desc:'Kirim 8 pesan dalam satu permainan.'},
+  {id:'kocok',   name:'Ratu Kocokan',    desc:'Menang kocokan arisan.'},
+  {id:'rutin',   name:'Tamu Rutin',      desc:'Main Arisan Harian 3 hari berturut-turut.'},
+  {id:'salah',   name:'Salah Tangkap',   desc:'Ikut mengeluarkan warga tak bersalah 3 kali.'},
+  {id:'bareng',  name:'Main Bareng',     desc:'Selesaikan satu permainan oper HP.'},
+  {id:'sesepuh', name:'Sesepuh',         desc:'Capai pangkat Sesepuh Arisan.'}
+];
+/* Kocokan arisan: hadiah tak terduga setelah setiap permainan. Peluang ditampilkan ke pemain. */
+const KOCOK_BASE_BONUS=.05,KOCOK_MAX=.5,KOCOK_PRIZE=30;
+const kocokChance=n=>Math.min(KOCOK_MAX,1/n+KOCOK_BASE_BONUS*(P.kocokDry||0));
+
+function defaultProfile(){return{name:'',hijab:'merah',frame:'none',title:'none',owned:['hijab:merah','frame:none','title:none'],
+  xp:0,kue:0,stats:{games:0,wins:0,role:{}},ach:{},daily:{last:'',streak:0,done:{}},kocokDry:0,wrongKicks:0};}
+let P=Object.assign(defaultProfile(),store.get('profile',{}));
+const saveP=()=>store.set('profile',P);
+const cos=(slot,id)=>COSMETICS.find(c=>c.slot===slot&&c.id===id);
+
+/* ================= avatar ================= */
+function avatarSVG(p,size){
+  const s=size||40,skin=p.skin||'#e0ac7e',hc=p.hijab||'#a3324f',out=p.alive===false;
+  const pattern=p.pattern?`<path d="M12 22 l4 -4 l4 4 l-4 4z M28 22 l4 -4 l4 4 l-4 4z" fill="#f2b632" opacity=".8"/>`:'';
+  const head=p.hair
+    ?`<path d="M8 26 C6 8 42 8 40 26 L40 34 L34 30 L34 22 C28 18 20 18 14 22 L14 30 L8 34 Z" fill="${hc}"/>`
+    :`<path d="M5 44 C5 12 43 12 43 44 Z" fill="${hc}"/>${pattern}`;
+  const frame=p.frameColor?`<circle cx="24" cy="24" r="22.5" fill="none" stroke="${p.frameColor}" stroke-width="3"/>`:'';
+  const mouth=out?'<path d="M19 33 Q24 30 29 33" stroke="#4a2a20" stroke-width="2" fill="none" stroke-linecap="round"/>'
+                 :'<path d="M19 31 Q24 35 29 31" stroke="#4a2a20" stroke-width="2" fill="none" stroke-linecap="round"/>';
+  return `<svg width="${s}" height="${s}" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="24" fill="#2b0d16"/>${head}<ellipse cx="24" cy="27" rx="11" ry="12" fill="${skin}"/>${p.hair?'':`<path d="M13 22 Q24 12 35 22" fill="${hc}"/>`}<circle cx="20" cy="26" r="1.8" fill="#2b1a1f"/><circle cx="28" cy="26" r="1.8" fill="#2b1a1f"/>${mouth}${frame}</svg>`;
+}
+function av(p,size,showSandal){
+  const sd=showSandal&&p.sandal?`<span class="sandal" style="background:${p.sandalHex}" title="Sandal ${esc(p.sandal)}"></span>`:'';
+  return `<span class="av ${p.alive===false?'out':''}">${avatarSVG(p,size)}${sd}</span>`;
+}
+function humanLook(){const h=cos('hijab',P.hijab)||COSMETICS[0],f=cos('frame',P.frame);return{hijab:h.color,pattern:!!h.pattern,skin:'#e8b88a',frameColor:f&&f.color};}
+
+/* ================= mesin game ================= */
+let G=null;
+function newGame(opts){
+  // opts: {mode:'bot'|'pass'|'sim', n, names?, seed?, daily?}
+  R=opts.seed!=null?mulberry32(opts.seed):Math.random;
+  const n=opts.n;
+  const roles=shuffle(roleList(n));
+  let players;
+  if(opts.mode==='pass'){
+    players=opts.names.map((nm,i)=>({name:nm,human:true,bot:null,hijab:BOTS[i%BOTS.length].hijab,skin:BOTS[i%BOTS.length].skin,hair:BOTS[i%BOTS.length].hair}));
+  }else{
+    const bots=shuffle(BOTS).slice(0,opts.mode==='sim'?n:n-1);
+    players=bots.map(b=>({name:b.name,bot:b.pers,human:false,hijab:b.hijab,skin:b.skin,hair:b.hair}));
+    if(opts.mode!=='sim'){
+      const look=humanLook();
+      players.unshift({name:'Bu '+(P.name||'Kamu'),bot:null,human:true,...look,title:(cos('title',P.title)||{}).text||''});
+    }
+  }
+  players.forEach((p,i)=>{p.id=i;p.role=roles[i];p.alive=true;p.beliefs={};p.saidInfo=false;p.votesGot=0;p.framed=0;});
+  // sandal: tiap bandar berbagi warna dengan minimal satu warga
+  const order=shuffle(players.map(p=>p.id));
+  order.forEach((id,k)=>{const s=SANDAL[k%SANDAL.length];players[id].sandal=s[0];players[id].sandalHex=s[1];});
+  for(const b of players.filter(p=>p.role==='bandar')){
+    if(players.filter(p=>p.sandal===b.sandal).length<2){
+      const other=players.find(p=>p.role!=='bandar'&&players.filter(q=>q.sandal===p.sandal).length>=2)||players.find(p=>p.role!=='bandar');
+      [b.sandal,b.sandalHex]=[other.sandal,other.sandalHex];
+    }
+  }
+  const k=roles.filter(r=>r==='bandar').length;
+  for(const v of players)for(const t of players)if(t!==v)v.beliefs[t.id]=k/(n-1-k);
+  G={mode:opts.mode,daily:!!opts.daily,seed:opts.seed,n,players,day:1,kas:KAS_START,phase:'night',
+     night:{actions:{},results:{}},news:[],msgs:[],allMsgs:[],bendClaimers:[],votes:[],kicked:[],
+     winner:null,reason:'',humanStats:{statements:0,votedBandar:0,votes:0,framed:false},token:0};
+  return G;
+}
+const pl=id=>G.players[id];
+const alive=()=>G.players.filter(p=>p.alive);
+const isBandar=id=>pl(id).role==='bandar';
+const human=()=>G.players.find(p=>p.human&&G.mode!=='pass');
+function prob(v,j){const o=v.beliefs[j];return o/(1+o);}
+function pubSusp(j){
+  const viewers=alive().filter(v=>v.id!==j&&v.role!=='bandar'&&!v.human);
+  if(!viewers.length)return .3;
+  return viewers.reduce((s,v)=>s+prob(v,j),0)/viewers.length;
+}
+function mulBelief(v,j,f){if(v.id===j||v.role==='bandar'||v.human)return;v.beliefs[j]=clamp(v.beliefs[j]*f,1e-4,1e4);}
+function knowInnocent(v,j){v.beliefs[j]=1e-4;}
+function knowBandar(v,j){v.beliefs[j]=1e4;}
+function cred(v,from){return clamp(1-prob(v,from)*1.5,.05,1);}
+function topSuspect(v,excl){let best=null,bp=-1;for(const p of alive()){if(p.id===v.id||(excl&&excl.has(p.id)))continue;const q=prob(v,p.id);if(q>bp){bp=q;best=p;}}return best;}
+function lowSuspect(v){let best=null,bp=2;for(const p of alive()){if(p.id===v.id)continue;const q=prob(v,p.id);if(q<bp){bp=q;best=p;}}return best;}
+
+/* ---------- malam ---------- */
+function botNightAction(p){
+  const others=alive().filter(q=>q.id!==p.id);
+  if(p.role==='bandar'){
+    const inn=others.filter(q=>q.role!=='bandar');
+    const claimer=inn.find(q=>G.bendClaimers.includes(q.id));
+    if(claimer&&rnd()<.7)return claimer.id;
+    return inn.sort((a,b)=>pubSusp(a.id)-pubSusp(b.id))[ri(Math.min(2,inn.length))].id;
+  }
+  if(p.role==='ketua'){
+    const claimer=others.find(q=>G.bendClaimers.includes(q.id)&&prob(p,q.id)<.4);
+    if(claimer&&rnd()<.6)return claimer.id;
+    return lowSuspect(p).id;
+  }
+  // bendahara, gosip, warga: selidiki yang paling dicurigai tapi belum pasti
+  const cand=others.filter(q=>{const x=prob(p,q.id);return x>.01&&x<.99;});
+  const pool=cand.length?cand:others;
+  const noise=PERS[p.bot]?PERS[p.bot].noise:.15;
+  return pool.map(q=>({q,s:prob(p,q.id)+rnd()*noise})).sort((a,b)=>b.s-a.s)[0].q.id;
+}
+function resolveNight(){
+  const A=G.night.actions,res={},news=[];
+  const bandars=alive().filter(p=>p.role==='bandar');
+  let take=0;
+  if(bandars.length){take=Math.round((1.15e6+rnd()*.25e6)/1e4)*1e4;G.kas-=take;}
+  news.push({type:'kas',take});
+  const protect=new Set(alive().filter(p=>p.role==='ketua'&&A[p.id]!=null).map(p=>A[p.id]));
+  let fitnah=null;
+  for(const b of bandars)if(A[b.id]!=null){fitnah=A[b.id];break;}
+  const blocked=fitnah!=null&&protect.has(fitnah);
+  const distracted=fitnah!=null&&!blocked&&!isBandar(fitnah)?fitnah:null;
+  for(const p of alive()){
+    const t=A[p.id];if(t==null)continue;
+    if(p.id===distracted&&p.role!=='ketua'){res[p.id]={type:'ngerumpi',target:t};continue;}
+    if(p.role==='bendahara')res[p.id]={type:'audit',target:t,value:isBandar(t)};
+    else if(p.role==='gosip'){const truth=isBandar(t);res[p.id]={type:'gosip',target:t,value:rnd()<TUNE.gosipAcc?truth:!truth};}
+    else if(p.role==='warga')res[p.id]={type:'intip',target:t,value:wentOut(pl(t))&&rnd()<TUNE.intipSeen};
+    else if(p.role==='ketua')res[p.id]={type:'jaga',target:t,value:blocked&&fitnah===t};
+    else if(p.role==='bandar')res[p.id]={type:'fitnah',target:t,value:t===fitnah&&!blocked};
+  }
+  if(fitnah!=null){
+    if(blocked)news.push({type:'klarifikasi',target:fitnah});
+    else{news.push({type:'fitnah',target:fitnah,text:pickR(FITNAH)});pl(fitnah).framed++;}
+  }
+  if(bandars.length&&rnd()<TUNE.sandalP)news.push({type:'sandal',color:pickR(bandars).sandal});
+  G.night.results=res;G.news=news;
+  // pengetahuan pribadi bot
+  for(const p of alive()){
+    const r=res[p.id];if(!r||p.human)continue;
+    if(r.type==='audit'){r.value?knowBandar(p,r.target):knowInnocent(p,r.target);p.audited=(p.audited||[]).concat(r.target);}
+    else if(r.type==='gosip')mulBelief(p,r.target,r.value?3:1/3);
+    else if(r.type==='intip')mulBelief(p,r.target,r.value?1.5:TUNE.intipQuiet);
+  }
+  // kabar pagi untuk semua bot
+  for(const v of alive()){
+    if(v.human||v.role==='bandar')continue;
+    for(const nw of news){
+      if(nw.type==='fitnah')mulBelief(v,nw.target,Math.pow(PERS[v.bot].gull,TUNE.gullPow));
+      else if(nw.type==='klarifikasi')mulBelief(v,nw.target,.8);
+      else if(nw.type==='sandal'){
+        for(const q of alive())if(q.sandal===nw.color)mulBelief(v,q.id,v.sandal===nw.color?TUNE.sandalSelfF:TUNE.sandalF);
+      }
+    }
+  }
+  for(const p of G.players)p.saidInfo=false;
+  G.msgs=[];G.phase='day';
+}
+const FITNAH=[
+  'kemarin beli kalung emas baru, padahal katanya lagi bokek',
+  'ketahuan transfer ke rekening yang namanya asing',
+  'tiba-tiba DP mobil, uangnya dari mana coba',
+  'kelihatan mondar-mandir dekat rumah bendahara jam 2 pagi',
+  'katanya mau umroh bulan depan, padahal arisan belum dapat',
+  'buka toko online kosmetik, modalnya dari mana ya'
+];
+
+/* ---------- siang: pesan ---------- */
+const LINES={
+  claimBendT:['Ibu-ibu, aku Bendahara. Semalam aku audit {t}, dan hasilnya BANDAR! 😤','Maaf ya, tapi aku harus jujur. Aku Bendahara, dan {t} itu Bandar Bodongnya.','Aku Bendahara. Buku kas {t} berantakan. Dia bandarnya!'],
+  claimBendF:['Aku Bendahara. Semalam aku cek {t}, bersih kok.','Info dari Bendahara: {t} aman, catatannya rapi.','Aku Bendahara ya. {t} bukan bandar, sudah aku audit.'],
+  claimGosipT:['Aku dengar dari tetangga sebelah, {t} itu mencurigakan banget 🤫','Kabar dari grup sebelah: {t} lagi banyak uang. Hmm.'],
+  claimGosipF:['Aku sudah cari kabar soal {t}, katanya biasa-biasa aja.','{t} aman kok, kata sumberku.'],
+  reportT:['Semalam aku lihat {t} keluar rumah, jam 1an. Ngapain ya?','Aku intip dari jendela, {t} keluar rumah semalam lho.'],
+  reportF:['Semalam {t} di rumah aja, lampunya mati dari jam 9.','Aku intip rumah {t}, gak keluar sama sekali kok.'],
+  accuse:['Aku kok curiga sama {t} ya…','Jujur, {t} dari kemarin gelagatnya aneh.','Feeling-ku sih {t}. Maaf ya Bu.','{t}, coba jelasin dong semalam di mana?'],
+  defend:['Aku yakin {t} bukan bandar. Orangnya lurus.','Jangan nuduh {t} dulu, kasihan.','{t} mah orang baik, aku jamin.'],
+  deny:['Lho kok aku?! Semalam aku nonton sinetron sampai ketiduran!','Astagfirullah, fitnah itu. Aku gak ngapa-ngapain!','Ya Allah, tega banget nuduh aku 😭','Silakan cek, aku gak ada apa-apa kok.'],
+  ketua:['Soal {t}, sudah aku klarifikasi ya Ibu-ibu. Jangan percaya kabar burung.'],
+  flavor:['Duh, kas kita makin tipis aja nih 😟','Aku bawa risol ya buat pertemuan nanti.','Ayo Ibu-ibu, fokus. Kita harus ketemu bandarnya hari ini.','Hmm… aku masih mikir.','Kok sepi? Pada sibuk masak ya?','Pokoknya aku gak mau kas kita dibawa kabur!'],
+  rumor:['Hah, {t}? Masa sih?! 😳','Pantesan {t} kemarin pakai tas baru…','Jangan langsung percaya dulu soal {t}, bisa aja fitnah.','Ya ampun {t}, beneran?'],
+  ngerumpi:['Semalam aku diajak ngerumpi sampai subuh, jadi gak sempat ngapa-ngapain. Kok kebetulan ya…','Ada yang ngajak aku ngobrol lama banget semalam. Curiga deh, sengaja ngalangin aku?'],
+  react:['Wah serius Bu?','Hmm, bisa jadi…','Aku kurang yakin sih.','Nah kan, aku juga mikir gitu!']
+};
+const STYLE={
+  julid:s=>s.replace(/\.$/,' 🙄'),polos:s=>s,bijak:s=>'Ibu-ibu, '+s.charAt(0).toLowerCase()+s.slice(1),
+  sosialita:s=>s+' Duh.',pendiam:s=>s,kepo:s=>s+' 👀',baper:s=>s,tegas:s=>s.replace(/\?$/,'!'),manusia:s=>s
+};
+function lineFor(m){
+  const t=m.target!=null?pl(m.target).name:'';
+  let key;
+  switch(m.type){
+    case 'claimBend':key=m.value?'claimBendT':'claimBendF';break;
+    case 'claimGosip':key=m.value?'claimGosipT':'claimGosipF';break;
+    case 'report':key=m.value?'reportT':'reportF';break;
+    default:key=m.type;
+  }
+  const arr=LINES[key]||LINES.flavor;
+  const base=pickR(arr).replace('{t}',t);
+  const p=pl(m.from);
+  return p.bot?STYLE[p.bot](base):base;
+}
+
+/* Rencana bicara bot untuk satu hari: urutan pembicara, isi dihitung saat gilirannya tiba */
+function planSpeakers(){
+  const slots=[];
+  const bots=shuffle(alive().filter(p=>!p.human));
+  // yang punya info cenderung bicara duluan
+  bots.sort((a,b)=>(G.night.results[b.id]&&b.role!=='bandar'?1:0)-(G.night.results[a.id]&&a.role!=='bandar'?1:0));
+  for(const b of bots){slots.push(b.id);}
+  for(const b of shuffle(bots))if(rnd()<PERS[b.bot].talk)slots.push(b.id);
+  // reaksi atas fitnah dari yang julid/kepo
+  const f=G.news.find(n=>n.type==='fitnah');
+  if(f){const r=bots.find(b=>['julid','kepo','sosialita'].includes(b.bot)&&b.id!==f.target);if(r)slots.splice(1,0,{rumor:r.id,target:f.target});}
+  return slots;
+}
+function accusedToday(id){return G.msgs.filter(m=>m.target===id&&(m.type==='accuse'||(m.type==='claimBend'&&m.value)||(m.type==='claimGosip'&&m.value)||(m.type==='report'&&m.value)));}
+function botSpeak(slot){
+  const m=botSpeakRaw(slot);
+  if(!m)return null;
+  // jangan mengulang pesan yang sama di hari yang sama
+  const dup=G.msgs.some(x=>x.from===m.from&&x.type===m.type&&x.target===m.target&&x.value===m.value);
+  if(dup)return m.type==='flavor'?null:{from:m.from,type:'flavor'};
+  return m;
+}
+function botSpeakRaw(slot){
+  if(typeof slot==='object'){const p=pl(slot.rumor);if(!p.alive)return null;return{from:p.id,type:'rumor',target:slot.target};}
+  const p=pl(slot);if(!p.alive)return null;
+  const per=PERS[p.bot];
+  const accused=accusedToday(p.id).filter(m=>!m.answered);
+  if(p.role==='bandar')return bandarSpeak(p,accused,per);
+  if(accused.length&&!p.denied){
+    p.denied=true;accused.forEach(m=>m.answered=true);
+    const hard=accused.find(m=>m.type==='claimBend');
+    // bendahara asli yang dituduh oleh "bendahara" palsu membalas dengan klaim
+    if(hard&&p.role==='bendahara'&&p.audited&&p.audited.length){const t=p.audited[p.audited.length-1];return{from:p.id,type:'claimBend',target:t,value:isBandar(t)};}
+    return{from:p.id,type:'deny'};
+  }
+  const r=G.night.results[p.id];
+  if(r&&!p.saidInfo){
+    p.saidInfo=true;
+    if(!pl(r.target).alive){}
+    else if(r.type==='audit'&&(r.value||rnd()<TUNE.auditClaimClean))return{from:p.id,type:'claimBend',target:r.target,value:r.value};
+    else if(r.type==='gosip'&&rnd()<.6)return{from:p.id,type:'claimGosip',target:r.target,value:r.value};
+    else if(r.type==='intip'&&rnd()<.6)return{from:p.id,type:'report',target:r.target,value:r.value};
+    else if(r.type==='jaga'&&r.value)return{from:p.id,type:'ketua',target:r.target};
+    else if(r.type==='ngerumpi')return{from:p.id,type:'ngerumpi'};
+  }
+  const top=topSuspect(p);
+  if(top&&prob(p,top.id)>.42&&rnd()<.85)return{from:p.id,type:'accuse',target:top.id};
+  const low=lowSuspect(p);
+  if(low&&rnd()<.3)return{from:p.id,type:'defend',target:low.id};
+  return{from:p.id,type:'flavor'};
+}
+function bandarSpeak(p,accused,per){
+  const partner=alive().find(q=>q.role==='bandar'&&q.id!==p.id);
+  const inn=alive().filter(q=>q.role!=='bandar');
+  if(!G.scape||!pl(G.scape).alive||isBandar(G.scape)){
+    const claimer=inn.find(q=>G.bendClaimers.includes(q.id));
+    G.scape=(claimer||inn.slice().sort((a,b)=>pubSusp(b.id)-pubSusp(a.id))[0]||{}).id;
+  }
+  if(accused.length&&!p.denied){
+    p.denied=true;accused.forEach(m=>m.answered=true);
+    const hard=accused.find(m=>m.type==='claimBend');
+    if(hard&&rnd()<Math.min(.95,per.lie+TUNE.counterP))return{from:p.id,type:'claimBend',target:hard.from,value:true};
+    return{from:p.id,type:'deny'};
+  }
+  if(partner&&accusedToday(partner.id).some(m=>m.type==='claimBend')&&rnd()<.35)return{from:p.id,type:'defend',target:partner.id};
+  if(!p.faked&&G.scape!=null&&rnd()<TUNE.fakeP*per.lie+(G.day>=3?.15:0)){
+    p.faked=true;
+    if(partner&&rnd()<.4)return{from:p.id,type:'claimBend',target:partner.id,value:false};
+    return{from:p.id,type:'claimBend',target:G.scape,value:true};
+  }
+  if(G.scape!=null&&rnd()<.6)return{from:p.id,type:'accuse',target:G.scape};
+  return{from:p.id,type:'flavor'};
+}
+
+/* Dampak setiap pesan pada keyakinan bot */
+function applyMsg(m){
+  const from=pl(m.from);
+  if(m.type==='claimBend'&&!G.bendClaimers.includes(m.from))G.bendClaimers.push(m.from);
+  for(const v of alive()){
+    if(v.id===m.from||v.human||v.role==='bandar')continue;
+    const c=cred(v,m.from),t=m.target;
+    switch(m.type){
+      case 'claimBend':{
+        const lie=(v.role==='bendahara')||(t===v.id&&m.value)||(v.audited&&v.audited.includes(t)&&isBandar(t)!==m.value);
+        if(lie){mulBelief(v,m.from,8);break;}
+        const others=G.bendClaimers.filter(x=>x!==m.from&&pl(x).alive);
+        if(others.length){mulBelief(v,m.from,1.8);others.forEach(x=>mulBelief(v,x,1.4));}
+        mulBelief(v,t,m.value?1+TUNE.bendLR*c:1/(1+3*c));
+        break;}
+      case 'claimGosip':if(t===v.id&&m.value){mulBelief(v,m.from,2);break;}mulBelief(v,t,m.value?1+1.5*c:1/(1+.8*c));break;
+      case 'report':
+        if(t===v.id){if(wentOut(v)!==m.value)mulBelief(v,m.from,5);break;}
+        mulBelief(v,t,m.value?1+.8*c:1/(1+2.5*c));break;
+      case 'accuse':if(t===v.id){mulBelief(v,m.from,1.6);break;}mulBelief(v,t,1+TUNE.accuseLR*c);break;
+      case 'defend':if(v.audited&&v.audited.includes(t)&&isBandar(t)){mulBelief(v,m.from,3);break;}mulBelief(v,t,1/(1+.35*c));break;
+      case 'ketua':mulBelief(v,t,.7);mulBelief(v,m.from,.8);break;
+      case 'deny':mulBelief(v,m.from,.93);break;
+    }
+  }
+  G.msgs.push(m);G.allMsgs.push({...m,day:G.day});
+}
+
+/* ---------- voting ---------- */
+function botVote(p){
+  const cands=alive().filter(q=>q.id!==p.id);
+  if(p.role==='bandar'){
+    const partner=cands.find(q=>q.role==='bandar');
+    if(partner&&pubSusp(partner.id)>.75&&rnd()<.3)return partner.id;
+    return cands.filter(q=>q.role!=='bandar').map(q=>({q,s:pubSusp(q.id)+rnd()*.12})).sort((a,b)=>b.s-a.s)[0].q.id;
+  }
+  const noise=PERS[p.bot].noise;
+  return cands.map(q=>({q,s:prob(p,q.id)+TUNE.bandwagon*pubSusp(q.id)+(rnd()-.5)*2*noise})).sort((a,b)=>b.s-a.s)[0].q.id;
+}
+function tally(votes){
+  const count={};for(const [,t] of votes)count[t]=(count[t]||0)+1;
+  let max=0,top=[];for(const [t,c] of Object.entries(count)){if(c>max){max=c;top=[+t];}else if(c===max)top.push(+t);}
+  const need=TUNE.majority?Math.floor(alive().length/2)+1:1;
+  return{count,kicked:top.length===1&&max>=need?top[0]:null,need};
+}
+function applyKick(kid,votes){
+  const k=pl(kid);k.alive=false;k.kickedDay=G.day;G.kicked.push(kid);
+  const bandar=k.role==='bandar';
+  for(const v of alive()){
+    if(v.human||v.role==='bandar')continue;
+    v.beliefs[kid]=bandar?1e4:1e-4;
+    for(const m of G.allMsgs){
+      if(m.target!==kid||m.from===v.id||!pl(m.from).alive)continue;
+      if(m.type==='claimBend')mulBelief(v,m.from,m.value===bandar?.3:8);
+      if(m.type==='accuse'&&!bandar)mulBelief(v,m.from,1.3);
+      if(m.type==='defend'&&bandar)mulBelief(v,m.from,1.8);
+    }
+    for(const [voter,t] of votes)if(t===kid&&voter!==v.id&&pl(voter).alive)mulBelief(v,voter,bandar?.85:1.15);
+  }
+}
+function checkWin(afterVote){
+  const b=alive().filter(p=>p.role==='bandar').length,w=alive().length-b;
+  if(b===0){G.winner='warga';G.reason='Semua Bandar Bodong ketahuan. Kas arisan selamat!';return true;}
+  if(b>=w){G.winner='bandar';G.reason='Bandar Bodong menguasai grup. Kas dibawa kabur!';return true;}
+  if(afterVote&&G.day>=TUNE.maxDay){G.winner='bandar';G.reason=`Pertemuan ke-${TUNE.maxDay} lewat. Bandar Bodong kabur bawa sisa kas ${jt(G.kas)}!`;return true;}
+  return false;
+}
+
+/* ---------- simulasi semua-bot (uji keseimbangan) ---------- */
+function simulate(games,n){
+  let warga=0,days=0;
+  for(let g=0;g<games;g++){
+    newGame({mode:'sim',n:n||6});
+    while(!G.winner){
+      G.night.actions={};for(const p of alive())G.night.actions[p.id]=botNightAction(p);
+      resolveNight();
+      for(const s of planSpeakers()){const m=botSpeak(s);if(m)applyMsg(m);}
+      const votes=alive().map(p=>[p.id,botVote(p)]);const t=tally(votes);
+      if(t.kicked!=null)applyKick(t.kicked,votes);
+      if(!checkWin(true))G.day++;
+    }
+    if(G.winner==='warga')warga++;days+=G.day;
+  }
+  R=Math.random;
+  return{wargaWin:warga/games,avgDays:days/games};
+}
+window.ArisanSim={simulate,TUNE,debug:{get G(){return G;},newGame,prob,pubSusp,alive,botNightAction,resolveNight,planSpeakers,botSpeak,applyMsg,botVote,tally}};
+
+/* ================= layar ================= */
+let screen='home';
+function render(html){app.innerHTML=html;app.scrollTop=0;}
+function on(sel,ev,fn){app.querySelectorAll(sel).forEach(el=>el.addEventListener(ev,fn));}
+const rankName=()=>RANKS[rankIdx(P.xp)][1];
+
+function homeScreen(){
+  screen='home';
+  if(G)G.token++;
+  const ri_=rankIdx(P.xp),next=RANKS[ri_+1];
+  const pct=next?Math.min(100,(P.xp-RANKS[ri_][0])/(next[0]-RANKS[ri_][0])*100):100;
+  const dk=todayKey(),dailyDone=P.daily.done[dk];
+  const me={...humanLook(),alive:true};
+  render(`
+  <div class="scroll">
+    <div class="row between">
+      <div><span class="eyebrow">Grup Arisan RT 05</span><h1 class="logo">ARISAN</h1></div>
+      <button class="ghost small" id="muteBtn" aria-pressed="${muted}">${muted?'Suara: mati':'Suara'}</button>
+    </div>
+    <p class="muted">Ada Bandar Bodong di grup arisan yang mau kabur bawa uang kas. Temukan dia sebelum pertemuan ke-${TUNE.maxDay} selesai.</p>
+    <div class="card">
+      <div class="row">${av(me,52)}<div class="grow" style="flex:1;min-width:0">
+        <label class="small muted" for="nameIn">Nama kamu</label>
+        <input type="text" id="nameIn" maxlength="14" placeholder="contoh: Ani" value="${esc(P.name)}"></div></div>
+      <div class="row between"><b>${esc(rankName())}</b><span class="pill"><span class="kue">●</span> ${P.kue} kue</span></div>
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      <span class="small muted">${next?`${P.xp} / ${next[0]} XP menuju ${esc(next[1])}`:`${P.xp} XP · pangkat tertinggi`}${P.daily.streak>1?` · Datang ${P.daily.streak} hari berturut-turut`:''}</span>
+    </div>
+    <div class="menu">
+      <button class="primary" id="playBot"><b>Main sama ibu-ibu</b><span>Kamu dan 5–7 ibu-ibu bot. Sekitar 5 menit.</span></button>
+      <button id="playDaily"><b>Arisan Harian #${dailyNo()} ${dailyDone?'✓':''}</b><span>${dailyDone?`Sudah dimainkan hari ini (${dailyDone.win?'menang':'kalah'}). Main lagi untuk latihan.`:'Soal yang sama untuk semua orang hari ini. Bandingkan hasilmu.'}</span></button>
+      <button id="playPass"><b>Main bareng, oper HP</b><span>4–8 orang di satu HP. Cocok buat arisan beneran.</span></button>
+    </div>
+    <div class="grid2">
+      <button id="goLemari">Lemari</button>
+      <button id="goAch">Prestasi ${Object.keys(P.ach).length}/${ACH.length}</button>
+    </div>
+    <details><summary>Cara main</summary>${howTo()}</details>
+    <details><summary>Peluang kocokan arisan</summary><p class="small">Setelah setiap permainan melawan bot, ada kocokan arisan. Peluangmu menang sama dengan 1 dibagi jumlah pemain, ditambah ${Math.round(KOCOK_BASE_BONUS*100)}% untuk setiap kocokan yang belum kamu menangkan, maksimal ${Math.round(KOCOK_MAX*100)}%. Hadiahnya ${KOCOK_PRIZE} kue. Kue hanya bisa didapat dari bermain dan tidak bisa dibeli. Peluangmu sekarang di permainan 6 orang: ${Math.round(kocokChance(6)*100)}%.</p></details>
+    <p class="small muted" style="text-align:center">Semua tokoh fiktif. Kemiripan dengan ibu-ibu di komplekmu hanya kebetulan.</p>
+  </div>`);
+  const nameIn=document.getElementById('nameIn');
+  nameIn.addEventListener('change',()=>{P.name=nameIn.value.replace(/[<>]/g,'').trim().slice(0,14);saveP();});
+  on('#muteBtn','click',()=>{muted=!muted;store.set('muted',muted);homeScreen();});
+  on('#playBot','click',()=>{unlockAudio();saveName();botSetup();});
+  on('#playDaily','click',()=>{unlockAudio();saveName();startBotGame({n:6,daily:true});});
+  on('#playPass','click',()=>{unlockAudio();saveName();passSetup();});
+  on('#goLemari','click',()=>lemari('hijab'));
+  on('#goAch','click',achScreen);
+}
+function saveName(){const el=document.getElementById('nameIn');if(el){P.name=el.value.replace(/[<>]/g,'').trim().slice(0,14);saveP();}}
+function howTo(){return `<ol class="steps small">
+  <li>Setiap permainan, peran diacak. Satu orang (dua kalau pemainnya ${TUNE.twoBandarFrom} atau lebih) adalah <b>Bandar Bodong</b>.</li>
+  <li><b>Malam:</b> semua orang diam-diam memilih satu target sesuai perannya. Bandar menilep kas dan mengajak satu orang ngerumpi: aksi orang itu gagal dan dia difitnah. Bendahara mengaudit. Bu RT menjaga satu orang. Ratu Gosip mencari kabar. Warga mengintip rumah.</li>
+  <li><b>Pagi:</b> kabar terbaru masuk ke grup. Ada fitnah, ada juga petunjuk sungguhan, misalnya warna sandal orang yang terlihat di dekat kotak kas.</li>
+  <li><b>Diskusi:</b> tuduh, bela, atau ngaku peranmu. Ingat, bandar juga bisa bohong ngaku jadi Bendahara.</li>
+  <li><b>Voting:</b> yang suaranya terbanyak dikeluarkan dari grup dan perannya dibuka. Kalau seri, tidak ada yang keluar.</li>
+  <li>Warga menang kalau semua bandar keluar. Bandar menang kalau masih di grup setelah voting pertemuan ke-${TUNE.maxDay}, atau jumlahnya menyamai warga.</li>
+</ol>`;}
+
+/* ---------- mode bot ---------- */
+function botSetup(){
+  screen='botSetup';let n=store.get('lastN',6);
+  const draw=()=>render(`
+  <div class="top"><button class="ghost small" id="back">Kembali</button><div class="grow"><h2>Main sama ibu-ibu</h2></div></div>
+  <div class="scroll">
+    <div class="card"><h3>Jumlah anggota arisan</h3>
+      <div class="stepper"><button class="small" id="minus" ${n<=6?'disabled':''}>−</button><b>${n}</b><button class="small" id="plus" ${n>=8?'disabled':''}>+</button>
+      <span class="small muted">${roleList(n).filter(r=>r==='bandar').length} Bandar Bodong</span></div>
+      <p class="small muted">Peran: ${roleSummary(n)}.</p>
+    </div>
+    <div class="card"><h3>Anggota bot</h3><p class="small muted">Setiap ibu punya kepribadian sendiri: ada yang gampang percaya gosip, ada yang tenang, ada yang jago bohong.</p>
+      <div class="people">${BOTS.map(b=>`<div class="person" style="cursor:default">${av({...b,alive:true},44)}<span>${esc(b.name)}</span><span class="tag">${PERS[b.pers].label}</span></div>`).join('')}</div></div>
+  </div>
+  <div class="bottom"><button class="primary" id="go">Mulai arisan</button></div>`);
+  draw();
+  app.addEventListener('click',function h(e){
+    if(screen!=='botSetup'){app.removeEventListener('click',h);return;}
+    const id=e.target.closest('button')&&e.target.closest('button').id;
+    if(id==='minus'&&n>6){n--;draw();}
+    if(id==='plus'&&n<8){n++;draw();}
+    if(id==='back'){app.removeEventListener('click',h);homeScreen();}
+    if(id==='go'){app.removeEventListener('click',h);store.set('lastN',n);startBotGame({n});}
+  });
+}
+function startBotGame({n,daily}){
+  const seed=daily?Number(todayKey().replace(/-/g,'')):null;
+  newGame({mode:'bot',n,seed,daily});
+  roleReveal();
+}
+function roleReveal(){
+  screen='reveal';
+  const me=human(),r=ROLE[me.role];
+  const partner=me.role==='bandar'?G.players.filter(p=>p.role==='bandar'&&p.id!==me.id):[];
+  render(`
+  <div class="top"><div class="grow"><h2>${G.daily?`Arisan Harian #${dailyNo()}`:'Peranmu'}</h2><span class="sub">${G.n} anggota · ${G.players.filter(p=>p.role==='bandar').length} Bandar Bodong</span></div></div>
+  <div class="scroll">
+    <div class="rolecard ${me.role}">
+      <span class="small" style="font-weight:800">Kamu adalah</span>
+      <span class="rname">${r.name}</span>
+      <p>${r.desc}</p>
+      ${partner.length?`<p><b>Rekanmu:</b> ${partner.map(p=>esc(p.name)).join(', ')}. Jangan sampai saling tuduh.</p>`:''}
+    </div>
+    <div class="card"><h3>Anggota grup</h3><p class="small muted">Titik warna di avatar adalah warna sandal. Perhatikan kalau ada kabar soal sandal.</p>
+      <div class="people">${G.players.map(p=>`<div class="person" style="cursor:default">${av(p,44,true)}<span>${esc(p.name)}${p.human?' (kamu)':''}</span><span class="tag">Sandal ${esc(p.sandal)}</span></div>`).join('')}</div></div>
+  </div>
+  <div class="bottom"><button class="primary" id="go">Mulai malam pertama</button></div>`);
+  on('#go','click',nightScreen);
+}
+function nightScreen(){
+  screen='night';G.phase='night';G.night={actions:{},results:{}};
+  const me=human();
+  for(const p of alive())if(!p.human)G.night.actions[p.id]=botNightAction(p);
+  if(!me.alive){resolveNight();return dayScreen();}
+  const r=ROLE[me.role];let sel=null;
+  const targets=alive().filter(p=>p.id!==me.id&&!(me.role==='bandar'&&p.role==='bandar'));
+  const draw=()=>render(`
+  <div class="top"><div class="grow"><h2>Malam ke-${G.day}</h2><span class="sub">Kas ${jt(G.kas)} · ${r.name}</span></div></div>
+  <div class="scroll">
+    <p class="eyebrow">${r.name}</p><h2>${r.act}</h2>
+    <p class="small muted">${me.role==='bandar'?'Kas otomatis kamu tilep malam ini. Orang yang kamu ajak ngerumpi gagal beraksi dan jadi korban fitnah. Bandar tetap terlihat keluar rumah.':me.role==='warga'?'Kamu cuma mengintip dari jendela, jadi kamu sendiri tidak dihitung keluar rumah.':'Pilihanmu rahasia.'}</p>
+    <div class="people">${targets.map(p=>`<button class="person ${sel===p.id?'sel':''}" data-id="${p.id}">${av(p,48,true)}<span>${esc(p.name)}</span></button>`).join('')}</div>
+  </div>
+  <div class="bottom">${me.role==='bandar'?'<button class="ghost" id="skip">Tidak mengajak siapa pun</button>':''}<button class="primary" id="go" ${sel==null?'disabled':''}>${sel==null?'Pilih satu orang':'Kunci pilihan'}</button></div>`);
+  draw();
+  app.onclick=e=>{
+    if(screen!=='night')return;
+    const b=e.target.closest('[data-id]');if(b){sel=+b.dataset.id;sfx.pop();draw();return;}
+    const id=e.target.closest('button')&&e.target.closest('button').id;
+    if(id==='go'&&sel!=null){G.night.actions[me.id]=sel;app.onclick=null;nightResult();}
+    if(id==='skip'){app.onclick=null;nightResult();}
+  };
+}
+function resultTone(r){
+  if(r.type==='audit'||r.type==='gosip'||r.type==='intip')return r.value?'bad':'good';
+  if(r.type==='jaga')return r.value?'good':'';
+  if(r.type==='ngerumpi')return 'bad';
+  return '';
+}
+function resultText(r){
+  const t='<b>'+esc(pl(r.target).name)+'</b>',acc=Math.round(TUNE.gosipAcc*100),seen=Math.round(TUNE.intipSeen*100);
+  switch(r.type){
+    case 'audit':return r.value?`Hasil audit: ${t} adalah BANDAR BODONG!`:`Hasil audit: ${t} bersih.`;
+    case 'gosip':return r.value?`Kabar yang kamu dengar: ${t} mencurigakan. (Kabarmu benar ${acc}% dari waktu.)`:`Kabar yang kamu dengar: ${t} biasa-biasa saja. (Kabarmu benar ${acc}% dari waktu.)`;
+    case 'intip':return r.value?`${t} keluar rumah semalam.`:`${t} tidak terlihat keluar. Kemungkinan bukan bandar, tapi malam gelap: orang yang keluar hanya terlihat ${seen}% dari waktu.`;
+    case 'jaga':return r.value?`Tepat! Bandar mengajak ${t} ngerumpi, dan kamu menolaknya. Fitnahnya sudah kamu klarifikasi.`:`Kamu menjaga ${t}. Malam ini tidak ada yang mengganggunya.`;
+    case 'fitnah':return r.value?`${t} kamu ajak ngerumpi sampai subuh. Aksinya malam ini gagal, dan fitnahnya menyebar.`:`Bu RT menjaga ${t}. Ajakanmu ditolak dan fitnahnya diklarifikasi.`;
+    case 'ngerumpi':return `Semalam kamu diajak ngerumpi tetangga sampai subuh, jadi aksimu gagal. Siapa ya yang ngajak?`;
+  }
+  return '';
+}
+function nightResult(){
+  resolveNight();
+  const me=human(),r=G.night.results[me.id];
+  let html='';
+  if(!r)html='<div class="result">Kamu tidak mengajak siapa pun malam ini. Kas tetap kamu tilep.</div>';
+  else{
+    if(r.type==='audit'&&r.value)G.auditedBandarByHuman=true;
+    html=`<div class="result ${resultTone(r)}">${resultText(r)}</div>`;
+  }
+  render(`
+  <div class="top"><div class="grow"><h2>Malam ke-${G.day}</h2><span class="sub">Hasil diam-diam</span></div></div>
+  <div class="scroll">${html}<p class="small muted">Hanya kamu yang tahu hasil ini. Mau dibagikan di grup atau dirahasiakan, terserah kamu.</p></div>
+  <div class="bottom"><button class="primary" id="go">Pagi, buka grup</button></div>`);
+  on('#go','click',dayScreen);
+}
+
+/* ---------- siang (chat) ---------- */
+let chat=null;
+function newsHTML(nw){
+  if(nw.type==='kas')return `<div class="sys news">💰 Kas berkurang <b>${rp(nw.take)}</b> semalam. Sisa ${jt(G.kas)}.</div>`;
+  if(nw.type==='fitnah')return `<div class="sys news">📢 Kabar beredar: <b>${esc(pl(nw.target).name)}</b> ${esc(nw.text)}.</div>`;
+  if(nw.type==='klarifikasi')return `<div class="sys news">🛡️ Ada yang menyebar fitnah tentang <b>${esc(pl(nw.target).name)}</b>, tapi Bu RT sudah mengklarifikasi.</div>`;
+  if(nw.type==='sandal'){const s=SANDAL.find(x=>x[0]===nw.color);return `<div class="sys news">👡 Ada yang lihat orang bersandal <b style="color:${s[1]}">${esc(nw.color)}</b> dekat kotak kas tengah malam.</div>`;}
+  return '';
+}
+function msgHTML(m){
+  const p=pl(m.from),me=p.human&&G.mode!=='pass';
+  const claim=['claimBend','claimGosip','report','ketua'].includes(m.type);
+  const title=p.title?` <small>· ${esc(p.title)}</small>`:'';
+  return `<div class="msg ${me?'me':''} ${claim?'claim':''}">${av(p,30)}<div class="bubble"><span class="who" style="color:${p.hijab}">${esc(p.name)}${title}</span>${esc(m.text)}</div></div>`;
+}
+function dayScreen(){
+  screen='day';G.phase='day';G.token++;
+  const tok=G.token,me=human();
+  if(checkWin(false))return endScreen();
+  chat={queue:planSpeakers(),idx:0,fast:false,mode:null,target:null,sent:0,done:false};
+  const last=G.day>=TUNE.maxDay;
+  render(`
+  <div class="chathead">
+    <div class="row between"><div><h2 style="font-size:1.1rem">Grup Arisan RT 05</h2><span class="small muted">Pertemuan ${G.day}/${TUNE.maxDay}${last?' · terakhir!':''}</span></div>
+      <button class="small" id="voteBtn">Mulai voting</button></div>
+    <div class="kas"><span>Kas arisan</span><span class="v">${jt(G.kas)}</span></div>
+    <div class="kasbar"><i style="width:${G.kas/KAS_START*100}%"></i></div>
+    <div class="members">${alive().map(p=>av(p,30,true)).join('')}</div>
+  </div>
+  <div class="feed" id="feed" aria-live="polite">
+    <div class="sys">Pagi, Ibu-ibu! ☀️ Pertemuan ke-${G.day}.</div>
+    ${G.news.map(newsHTML).join('')}
+    ${last?`<div class="sys alert">Ini pertemuan terakhir. Kalau bandar tidak ketahuan hari ini, dia kabur bawa sisa kas!</div>`:''}
+    ${!me.alive?'<div class="sys">Kamu sudah dikeluarkan dari grup. Kamu masih bisa membaca obrolan.</div>':''}
+  </div>
+  ${me.alive?composerHTML():'<div class="composer"><button id="fastBtn">Percepat obrolan</button></div>'}`);
+  bindComposer();
+  on('#voteBtn','click',()=>startVote());
+  on('#fastBtn','click',()=>{chat.fast=true;});
+  scrollFeed();
+  setTimeout(()=>tick(tok),900);
+}
+function scrollFeed(){const f=document.getElementById('feed');if(f)f.scrollTop=f.scrollHeight;}
+function addToFeed(html){const f=document.getElementById('feed');if(!f)return;const t=f.querySelector('.typing');if(t)t.remove();f.insertAdjacentHTML('beforeend',html);scrollFeed();}
+function tick(tok){
+  if(!G||G.token!==tok||screen!=='day')return;
+  if(chat.idx>=chat.queue.length){
+    if(!chat.done){chat.done=true;addToFeed(`<div class="sys">Obrolan mulai sepi. Tekan <b>Mulai voting</b> kalau sudah siap.</div>`);}
+    return;
+  }
+  const slot=chat.queue[chat.idx++];
+  const m=botSpeak(slot);
+  if(!m){tick(tok);return;}
+  const who=pl(m.from);
+  addToFeed(`<div class="typing">${esc(who.name)} sedang mengetik…</div>`);
+  const delay=chat.fast?250:900+rnd()*900;
+  setTimeout(()=>{
+    if(!G||G.token!==tok||screen!=='day')return;
+    m.text=m.type==='rumor'?pickR(LINES.rumor).replace('{t}',pl(m.target).name):lineFor(m);
+    if(m.type!=='rumor')applyMsg(m);
+    addToFeed(msgHTML(m));sfx.pop();
+    setTimeout(()=>tick(tok),chat.fast?150:500+rnd()*600);
+  },delay);
+}
+const ACTIONS=[
+  {id:'accuse',label:'Curiga',needT:true},
+  {id:'defend',label:'Bela',needT:true},
+  {id:'claimBendT',label:'Ngaku Bendahara: dia BANDAR',needT:true},
+  {id:'claimBendF',label:'Ngaku Bendahara: dia bersih',needT:true},
+  {id:'reportT',label:'Lapor: dia keluar rumah',needT:true},
+  {id:'reportF',label:'Lapor: dia di rumah',needT:true},
+  {id:'claimGosipT',label:'Gosip: dia mencurigakan',needT:true},
+  {id:'sticker',label:'Kirim stiker',needT:false}
+];
+const MAX_SEND=3;
+function composerHTML(){
+  const me=human();
+  const stickers=P.owned.filter(o=>o.startsWith('sticker:')).length;
+  return `<div class="composer">
+    <div class="chips" id="acts">${ACTIONS.filter(a=>a.id!=='sticker'||stickers).map(a=>`<button data-act="${a.id}">${a.label}</button>`).join('')}</div>
+    <div class="targets" id="tgts" hidden>${alive().filter(p=>p.id!==me.id).map(p=>`<button data-t="${p.id}">${av(p,26,true)}${esc(p.name.replace('Bu ',''))}</button>`).join('')}</div>
+    <div class="row"><span class="small muted" style="flex:1" id="sendInfo">Pilih jenis pesan. Sisa ${MAX_SEND} pesan hari ini.</span><button class="primary small" id="send" disabled>Kirim</button></div>
+  </div>`;
+}
+function bindComposer(){
+  const acts=document.getElementById('acts');if(!acts)return;
+  acts.onclick=e=>{const b=e.target.closest('[data-act]');if(!b)return;chat.mode=b.dataset.act;acts.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+    const need=(ACTIONS.find(a=>a.id===chat.mode)||{}).needT;document.getElementById('tgts').hidden=!need;if(!need)chat.target=null;updSend();};
+  document.getElementById('tgts').onclick=e=>{const b=e.target.closest('[data-t]');if(!b)return;chat.target=+b.dataset.t;document.querySelectorAll('#tgts button').forEach(x=>x.classList.toggle('on',x===b));updSend();};
+  document.getElementById('send').onclick=sendHuman;
+}
+function updSend(){
+  const a=ACTIONS.find(x=>x.id===chat.mode),ok=a&&(!a.needT||chat.target!=null)&&chat.sent<MAX_SEND;
+  const btn=document.getElementById('send');if(btn)btn.disabled=!ok;
+}
+function sendHuman(){
+  const me=human();if(chat.sent>=MAX_SEND)return;
+  const a=chat.mode;let m;
+  const map={accuse:['accuse'],defend:['defend'],claimBendT:['claimBend',true],claimBendF:['claimBend',false],reportT:['report',true],reportF:['report',false],claimGosipT:['claimGosip',true]};
+  if(a==='sticker'){
+    const owned=P.owned.filter(o=>o.startsWith('sticker:')).map(o=>cos('sticker',o.split(':')[1]));
+    m={from:me.id,type:'flavor',text:pickR(owned).text};
+  }else{
+    const [type,value]=map[a];m={from:me.id,type,target:chat.target,value};
+    m.text=lineFor(m);
+  }
+  if(m.type!=='flavor')applyMsg(m);else G.msgs.push(m);
+  G.humanStats.statements++;
+  addToFeed(msgHTML(m));sfx.send();chat.sent++;
+  // satu atau dua bot menanggapi
+  if(m.target!=null){
+    const tgt=pl(m.target);
+    const insert=[];
+    if(!tgt.human&&tgt.alive)insert.push(tgt.id);
+    const other=shuffle(alive().filter(p=>!p.human&&p.id!==m.target))[0];
+    if(other)insert.push(other.id);
+    chat.queue.splice(chat.idx,0,...insert);
+    if(chat.done){chat.done=false;setTimeout(()=>tick(G.token),700);}
+  }
+  chat.mode=null;chat.target=null;
+  document.querySelectorAll('#acts button,#tgts button').forEach(x=>x.classList.remove('on'));
+  document.getElementById('tgts').hidden=true;
+  document.getElementById('sendInfo').textContent=chat.sent>=MAX_SEND?'Jatah pesanmu hari ini habis. Simak yang lain, lalu voting.':`Sisa ${MAX_SEND-chat.sent} pesan hari ini.`;
+  updSend();
+}
+
+/* ---------- voting (mode bot) ---------- */
+function startVote(){
+  if(screen!=='day')return;
+  screen='vote';G.token++;
+  const me=human();
+  const cands=alive();
+  let sel=null;
+  const votes=[];
+  for(const p of alive())if(!p.human)votes.push([p.id,botVote(p)]);
+  const draw=(revealed)=>{
+    const t=tally(revealed?votes:[]);
+    const total=revealed?votes.length:0;
+    app.querySelector('#poll').innerHTML=cands.filter(p=>p.id!==me.id||revealed).map(p=>{
+      const c=t.count[p.id]||0;
+      const voters=revealed?votes.filter(v=>v[1]===p.id).map(v=>av(pl(v[0]),18)).join(''):'';
+      return `<button class="opt ${sel===p.id?'sel':''}" data-id="${p.id}" ${revealed||p.id===me.id?'disabled':''}>${av(p,36,true)}<span><b>${esc(p.name)}</b></span><span class="count">${revealed?c:''}</span>
+        <span class="vbar"><i style="width:${total?c/total*100:0}%"></i></span>${voters?`<span class="voters">${voters}</span>`:''}</button>`;
+    }).join('');
+  };
+  render(`
+  <div class="top"><div class="grow"><h2>Voting pertemuan ${G.day}</h2><span class="sub">Siapa yang dikeluarkan dari grup?</span></div></div>
+  <div class="scroll"><p class="small muted">${me.alive?'Pilih satu orang. Suara terbanyak dikeluarkan. Kalau seri, tidak ada yang keluar.':'Kamu sudah keluar, jadi hanya bisa melihat hasilnya.'}</p><div class="poll" id="poll"></div></div>
+  <div class="bottom">${me.alive?'<button class="ghost" id="abstain">Tidak memilih</button><button class="primary" id="go" disabled>Pilih dulu</button>':'<button class="primary" id="go">Lihat hasil</button>'}</div>`);
+  draw(false);
+  app.onclick=e=>{
+    if(screen!=='vote')return;
+    const b=e.target.closest('.opt[data-id]');
+    if(b&&!b.disabled){sel=+b.dataset.id;sfx.pop();draw(false);const g=document.getElementById('go');g.disabled=false;g.textContent='Kunci suara';return;}
+    const id=e.target.closest('button')&&e.target.closest('button').id;
+    if(id==='go'||id==='abstain'){
+      if(id==='go'&&me.alive&&sel==null)return;
+      app.onclick=null;
+      if(me.alive&&id==='go'){votes.push([me.id,sel]);G.humanStats.votes++;if(isBandar(sel))G.humanStats.votedBandar++;}
+      sfx.shake();draw(true);
+      const bottom=app.querySelector('.bottom');bottom.innerHTML='<button class="primary" id="next">Lanjut</button>';
+      bottom.querySelector('#next').onclick=()=>afterVote(votes);
+    }
+  };
+}
+function afterVote(votes){
+  const t=tally(votes);
+  for(const [,x] of votes)pl(x).votesGot++;
+  G.votes.push({day:G.day,votes,kicked:t.kicked});
+  const me=human();
+  if(t.kicked!=null){
+    const k=pl(t.kicked);applyKick(k.id,votes);
+    if(k.role!=='bandar'&&me&&votes.some(([v,x])=>v===me.id&&x===k.id)){P.wrongKicks=(P.wrongKicks||0)+1;saveP();}
+  }
+  const over=checkWin(true);
+  kickScreen(t,over);
+}
+function kickScreen(t,over){
+  screen='kick';
+  const k=t.kicked!=null?pl(t.kicked):null;
+  if(k){k.role==='bandar'?sfx.win():sfx.gasp();buzz();}
+  render(`
+  <div class="top"><div class="grow"><h2>Hasil voting</h2><span class="sub">Pertemuan ${G.day}</span></div></div>
+  <div class="scroll" style="justify-content:center">
+    ${k?`<div class="rolecard ${k.role==='bandar'?'bandar':''}" style="align-items:center;text-align:center">
+        ${av({...k,alive:true},72)}<span class="small" style="font-weight:800">${esc(k.name)} dikeluarkan dari grup</span>
+        <span class="rname">${k.role==='bandar'?'Bandar Bodong!':'Ternyata '+ROLE[k.role].name}</span>
+        <p>${k.role==='bandar'?'Uang kas yang ditilep berhasil ditemukan di bawah kasur. 😤':'Duh, salah orang. '+esc(k.name)+' cuma '+ROLE[k.role].short.toLowerCase()+' biasa. 😢'}</p></div>`
+      :`<div class="rolecard" style="text-align:center"><span class="rname">Seri!</span><p>Suaranya terbagi. Tidak ada yang dikeluarkan, dan rapat ditunda sampai besok.</p></div>`}
+  </div>
+  <div class="bottom"><button class="primary" id="go">${over?'Lihat hasil akhir':'Lanjut ke malam '+(G.day+1)}</button></div>`);
+  on('#go','click',()=>{if(over)return endScreen();G.day++;G.mode==='pass'?passNight():nightScreen();});
+}
+
+/* ---------- akhir permainan ---------- */
+function endScreen(){
+  screen='end';
+  const me=human();
+  const pass=G.mode==='pass';
+  let html='',share='';
+  const roleRows=G.players.map(p=>`<div>${av({...p,alive:true},32)}<span>${esc(p.name)}${p.human&&!pass?' (kamu)':''}${p.alive?'':' <span class="small muted">· keluar hari '+p.kickedDay+'</span>'}</span><span class="r ${p.role}">${ROLE[p.role].name}</span></div>`).join('');
+  if(pass){
+    G.winner==='warga'?sfx.win():sfx.lose();
+    const first=!P.ach.bareng;P.ach.bareng=true;P.xp+=10;saveP();
+    html=`<div class="endbanner ${G.winner==='warga'?'win':'lose'}"><span class="big">${G.winner==='warga'?'Warga menang!':'Bandar menang!'}</span><span>${esc(G.reason)}</span></div>
+      ${first?'<div class="result good">Prestasi baru: Main Bareng</div>':''}
+      <div class="card"><h3>Peran semua orang</h3><div class="rolelist">${roleRows}</div></div>`;
+    share=`ARISAN · main bareng ${G.n} orang\n${G.winner==='warga'?'Warga menang, bandar ketahuan':'Bandar Bodong kabur bawa kas'} di pertemuan ${G.day}\nthofik93.github.io/arisan`;
+  }else{
+    const team=ROLE[me.role].team,won=G.winner===team;
+    won?sfx.win():sfx.lose();
+    // hadiah
+    let xp=10+(won?20:0)+5*G.humanStats.votedBandar+(me.alive?5:0),kue=won?6:2;
+    const dk=todayKey(),firstDaily=G.daily&&!P.daily.done[dk];
+    if(firstDaily){
+      xp+=10;
+      const y=todayKey(new Date(Date.now()-864e5));
+      P.daily.streak=P.daily.last===y?P.daily.streak+1:1;P.daily.last=dk;
+      P.daily.done[dk]={win:won,role:me.role,day:G.day};
+    }
+    const r0=rankIdx(P.xp);P.xp+=xp;P.kue+=kue;const r1=rankIdx(P.xp);
+    P.stats.games++;if(won)P.stats.wins++;
+    const rs=P.stats.role[me.role]||{g:0,w:0};rs.g++;if(won)rs.w++;P.stats.role[me.role]=rs;
+    // prestasi
+    const newAch=[];
+    const give=id=>{if(!P.ach[id]){P.ach[id]=true;newAch.push(ACH.find(a=>a.id===id).name);}};
+    if(won&&team==='warga'&&G.kicked.length&&isBandar(G.kicked[0])&&pl(G.kicked[0]).kickedDay===1)give('detektif');
+    if(won&&me.role==='bandar'&&me.votesGot===0)give('licin');
+    if(G.auditedBandarByHuman)give('audit');
+    if(me.framed>0&&me.alive)give('fitnah');
+    if(G.humanStats.statements>=8)give('ember');
+    if(P.daily.streak>=3)give('rutin');
+    if((P.wrongKicks||0)>=3)give('salah');
+    if(r1>=4)give('sesepuh');
+    saveP();
+    const ri_=rankIdx(P.xp),next=RANKS[ri_+1];
+    html=`<div class="endbanner ${won?'win':'lose'}"><span class="big">${won?'Kamu menang!':'Kamu kalah'}</span><span>${esc(G.reason)}</span><span class="small">Peranmu: ${ROLE[me.role].name}</span></div>
+      ${r1>r0?`<div class="result good">Naik pangkat jadi <b>${esc(RANKS[r1][1])}</b>!</div>`:''}
+      ${newAch.map(a=>`<div class="result good">Prestasi baru: <b>${esc(a)}</b></div>`).join('')}
+      <div class="reward"><div><b>+${xp}</b><span class="small">XP</span></div><div><b class="kue">+${kue}</b><span class="small">kue</span></div>${G.daily?`<div><b>${P.daily.streak||0}</b><span class="small">hari berturut</span></div>`:`<div><b>${P.kue}</b><span class="small">total kue</span></div>`}</div>
+      <div class="card kocok" id="kocok"><h3>Kocokan arisan</h3><p class="small muted">Siapa yang dapat arisan hari ini? Peluangmu ${Math.round(kocokChance(G.n)*100)}%.</p><div class="slot" id="slot">?</div><button class="primary" id="kocokBtn">Kocok!</button></div>
+      <div class="card"><h3>Peran semua orang</h3><div class="rolelist">${roleRows}</div></div>
+      <p class="small muted">${next?`${next[0]-P.xp} XP lagi menuju ${esc(next[1])}.`:'Kamu sudah di pangkat tertinggi.'}</p>`;
+    const grid=G.votes.map(v=>v.kicked==null?'⬜':isBandar(v.kicked)?'🟩':'🟥').join('');
+    share=`ARISAN${G.daily?` Harian #${dailyNo()}`:''}\nPeranku: ${ROLE[me.role].name}\n${won?'Menang':'Kalah'} di pertemuan ${G.day} ${grid}\nthofik93.github.io/arisan`;
+  }
+  render(`
+  <div class="top"><div class="grow"><h2>Arisan selesai</h2><span class="sub">${G.daily?'Arisan Harian #'+dailyNo():pass?'Main bareng':'Lawan bot'}</span></div></div>
+  <div class="scroll">${html}<div class="share" id="shareTxt">${esc(share)}</div></div>
+  <div class="bottom"><button class="primary" id="again">Main lagi</button><button id="shareBtn">Bagikan</button><button class="ghost" id="home">Beranda</button></div>`);
+  on('#home','click',homeScreen);
+  on('#again','click',()=>pass?passSetup():G.daily?startBotGame({n:6,daily:true}):startBotGame({n:G.n}));
+  on('#shareBtn','click',async()=>{
+    try{
+      const C=window.Capacitor;
+      if(navigator.share){await navigator.share({text:share});return;}
+      await navigator.clipboard.writeText(share);toast('Hasil disalin. Tempel di grup WA-mu!');
+    }catch(e){const r=document.createRange();r.selectNodeContents(document.getElementById('shareTxt'));getSelection().removeAllRanges();getSelection().addRange(r);}
+  });
+  on('#kocokBtn','click',e=>{
+    e.target.disabled=true;sfx.shake();
+    const chance=kocokChance(G.n),won=Math.random()<chance;
+    const names=G.players.map(p=>p.name),slot=document.getElementById('slot');
+    const winner=won?me.name:pickR(G.players.filter(p=>p.id!==me.id&&p.role!=='bandar')).name;
+    let i=0;const iv=setInterval(()=>{slot.textContent=names[i++%names.length];},90);
+    setTimeout(()=>{
+      clearInterval(iv);slot.textContent=winner;
+      if(won){slot.classList.add('won');P.kue+=KOCOK_PRIZE;P.kocokDry=0;if(!P.ach.kocok){P.ach.kocok=true;toast('Prestasi baru: Ratu Kocokan');}sfx.win();buzz();
+        e.target.outerHTML=`<p><b>Kamu dapat arisan! +${KOCOK_PRIZE} kue</b></p>`;}
+      else{P.kocokDry=(P.kocokDry||0)+1;e.target.outerHTML=`<p class="small muted">Belum rezeki. Peluangmu di kocokan berikutnya naik jadi ${Math.round(kocokChance(G.n)*100)}%.</p>`;}
+      saveP();
+    },1800);
+  });
+}
+
+/* ---------- mode oper HP ---------- */
+function passSetup(){
+  screen='passSetup';
+  let names=store.get('passNames',['Ani','Budi','Cici','Dewi','Eka','Fani'].slice(0,5));
+  const draw=()=>{render(`
+  <div class="top"><button class="ghost small" id="back">Kembali</button><div class="grow"><h2>Main bareng</h2><span class="sub">Satu HP dioper bergantian</span></div></div>
+  <div class="scroll">
+    <p class="muted">Duduk melingkar. HP dioper saat lihat peran, aksi malam, dan voting. Diskusinya ngobrol langsung.</p>
+    <div class="card"><h3>Pemain (${names.length})</h3>
+      ${names.map((n,i)=>`<div class="row">${av({...BOTS[i%8],alive:true},34)}<input type="text" data-i="${i}" value="${esc(n)}" maxlength="12" aria-label="Nama pemain ${i+1}">${names.length>4?`<button class="small ghost" data-del="${i}" aria-label="Hapus">✕</button>`:''}</div>`).join('')}
+      ${names.length<8?'<button class="small" id="add">+ Tambah pemain</button>':''}
+      <p class="small muted">Peran: ${roleSummary(names.length)}.</p>
+    </div>
+    <details><summary>Cara main</summary>${howTo()}</details>
+  </div>
+  <div class="bottom"><button class="primary" id="go">Mulai</button></div>`);
+  app.querySelectorAll('input[data-i]').forEach(el=>el.addEventListener('input',()=>{names[+el.dataset.i]=el.value;}));};
+  draw();
+  app.onclick=e=>{
+    if(screen!=='passSetup')return;
+    const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.del!=null){names.splice(+b.dataset.del,1);draw();return;}
+    if(b.id==='add'){names.push('Pemain '+(names.length+1));draw();return;}
+    if(b.id==='back'){app.onclick=null;homeScreen();return;}
+    if(b.id==='go'){
+      names=names.map((n,i)=>(n||'').replace(/[<>]/g,'').trim().slice(0,12)||'Pemain '+(i+1));
+      if(new Set(names).size!==names.length){toast('Nama pemain tidak boleh sama.');return;}
+      store.set('passNames',names);app.onclick=null;
+      newGame({mode:'pass',n:names.length,names});
+      passQueue(G.players.map(p=>p.id),passReveal,()=>{passNight();});
+    }
+  };
+}
+/* Oper HP satu per satu: layar serah-terima, lalu layar pribadi */
+function passQueue(ids,privateFn,done){
+  let i=0;
+  const nextP=()=>{
+    if(i>=ids.length)return done();
+    const p=pl(ids[i++]);
+    screen='handoff';
+    render(`<div class="handoff">${av({...p,alive:true},84)}<span class="muted">Oper HP ke</span><span class="big">${esc(p.name)}</span>
+      <p class="small muted">Yang lain jangan ngintip ya.</p><button class="primary" id="me">Aku ${esc(p.name)}</button></div>`);
+    on('#me','click',()=>{sfx.pop();privateFn(p,nextP);});
+  };
+  nextP();
+}
+function passReveal(p,next){
+  const r=ROLE[p.role];
+  const partner=p.role==='bandar'?G.players.filter(q=>q.role==='bandar'&&q.id!==p.id):[];
+  render(`<div class="scroll" style="justify-content:center">
+    <div class="rolecard ${p.role}"><span class="small" style="font-weight:800">${esc(p.name)}, kamu adalah</span><span class="rname">${r.name}</span><p>${r.desc}</p>
+    ${partner.length?`<p><b>Rekanmu:</b> ${partner.map(q=>esc(q.name)).join(', ')}</p>`:''}<p class="small">Sandalmu warna <b>${esc(p.sandal)}</b>.</p></div></div>
+    <div class="bottom"><button class="primary" id="ok">Sudah hafal, sembunyikan</button></div>`);
+  on('#ok','click',next);
+}
+function passNight(){
+  G.phase='night';G.night={actions:{},results:{}};
+  passQueue(alive().map(p=>p.id),(p,next)=>{
+    const r=ROLE[p.role];let sel=null;
+    const targets=alive().filter(q=>q.id!==p.id&&!(p.role==='bandar'&&q.role==='bandar'));
+    const draw=()=>{render(`
+      <div class="top"><div class="grow"><h2>Malam ke-${G.day} · ${esc(p.name)}</h2><span class="sub">${r.name}</span></div></div>
+      <div class="scroll"><h2>${r.act}</h2>
+      <div class="people">${targets.map(q=>`<button class="person ${sel===q.id?'sel':''}" data-id="${q.id}">${av(q,44,true)}<span>${esc(q.name)}</span></button>`).join('')}</div></div>
+      <div class="bottom">${p.role==='bandar'?'<button class="ghost" id="skip">Tidak mengajak siapa pun</button>':''}<button class="primary" id="go" ${sel==null?'disabled':''}>Kunci pilihan</button></div>`);};
+    draw();
+    app.onclick=e=>{
+      const b=e.target.closest('[data-id]');if(b){sel=+b.dataset.id;draw();return;}
+      const id=e.target.closest('button')&&e.target.closest('button').id;
+      if(id==='go'&&sel!=null){app.onclick=null;G.night.actions[p.id]=sel;passNightNote(p,next);}
+      if(id==='skip'){app.onclick=null;passNightNote(p,next);}
+    };
+  },()=>{
+    resolveNight();
+    // hasil pribadi dibagikan lewat oper HP sekali lagi agar urutan tidak membocorkan peran
+    passQueue(alive().map(p=>p.id),(p,next)=>{
+      const r=G.night.results[p.id];
+      let txt='Malammu tenang. Tidak ada kabar khusus.';
+      if(r)txt=resultText(r);
+      render(`<div class="scroll" style="justify-content:center"><div class="result">${txt}</div></div><div class="bottom"><button class="primary" id="ok">Sembunyikan</button></div>`);
+      on('#ok','click',next);
+    },passMorning);
+  });
+}
+function passNightNote(p,next){
+  render(`<div class="scroll" style="justify-content:center"><div class="result">Pilihanmu tercatat. Hasilnya diberikan setelah semua orang selesai.</div></div><div class="bottom"><button class="primary" id="ok">Sembunyikan</button></div>`);
+  on('#ok','click',next);
+}
+function passMorning(){
+  screen='passDay';
+  if(checkWin(false))return endScreen();
+  let secs=180,iv=null;
+  const last=G.day>=TUNE.maxDay;
+  render(`
+  <div class="top"><div class="grow"><h2>Pagi, pertemuan ${G.day}/${TUNE.maxDay}</h2><span class="sub">Kas ${jt(G.kas)}</span></div></div>
+  <div class="scroll">
+    <div class="kasbar"><i style="width:${G.kas/KAS_START*100}%"></i></div>
+    ${G.news.map(newsHTML).join('')}
+    ${last?'<div class="sys alert">Pertemuan terakhir! Kalau bandar tidak ketahuan hari ini, dia kabur.</div>':''}
+    <div class="card"><h3>Masih di grup</h3><div class="people">${alive().map(p=>`<div class="person" style="cursor:default">${av(p,40,true)}<span>${esc(p.name)}</span></div>`).join('')}</div></div>
+    <div class="card" style="align-items:center"><span class="small muted">Waktu diskusi</span><div class="timer" id="timer">3:00</div>
+      <div class="row"><button class="small" id="plus">+1 menit</button><button class="small" id="pause">Jeda</button></div></div>
+  </div>
+  <div class="bottom"><button class="primary" id="vote">Mulai voting rahasia</button></div>`);
+  const tEl=document.getElementById('timer');
+  const show=()=>{tEl.textContent=Math.floor(secs/60)+':'+String(secs%60).padStart(2,'0');};
+  let running=true;
+  iv=setInterval(()=>{if(screen!=='passDay'){clearInterval(iv);return;}if(!running)return;secs=Math.max(0,secs-1);show();if(secs===0){sfx.shake();buzz();running=false;}},1000);
+  on('#plus','click',()=>{secs+=60;show();});
+  on('#pause','click',e=>{running=!running;e.target.textContent=running?'Jeda':'Lanjut';});
+  on('#vote','click',()=>{clearInterval(iv);passVote();});
+}
+function passVote(){
+  const votes=[];
+  passQueue(alive().map(p=>p.id),(p,next)=>{
+    let sel=null;
+    const draw=()=>{render(`
+      <div class="top"><div class="grow"><h2>Suara rahasia · ${esc(p.name)}</h2></div></div>
+      <div class="scroll"><div class="people">${alive().filter(q=>q.id!==p.id).map(q=>`<button class="person ${sel===q.id?'sel':''}" data-id="${q.id}">${av(q,44,true)}<span>${esc(q.name)}</span></button>`).join('')}</div></div>
+      <div class="bottom"><button class="ghost" id="abs">Tidak memilih</button><button class="primary" id="go" ${sel==null?'disabled':''}>Kunci suara</button></div>`);};
+    draw();
+    app.onclick=e=>{
+      const b=e.target.closest('[data-id]');if(b){sel=+b.dataset.id;draw();return;}
+      const id=e.target.closest('button')&&e.target.closest('button').id;
+      if(id==='go'&&sel!=null){app.onclick=null;votes.push([p.id,sel]);next();}
+      if(id==='abs'){app.onclick=null;next();}
+    };
+  },()=>{
+    screen='passTally';
+    const t=tally(votes);
+    render(`
+    <div class="top"><div class="grow"><h2>Hasil voting</h2><span class="sub">Kumpul lagi, lihat bareng-bareng</span></div></div>
+    <div class="scroll"><div class="poll">${alive().map(p=>{const c=t.count[p.id]||0;return `<div class="opt">${av(p,34,true)}<span><b>${esc(p.name)}</b></span><span class="count">${c}</span><span class="vbar"><i style="width:${votes.length?c/votes.length*100:0}%"></i></span></div>`;}).join('')}</div>
+    <p class="small muted">Suara tetap rahasia, yang ditampilkan hanya jumlahnya.</p></div>
+    <div class="bottom"><button class="primary" id="go">Buka hasilnya</button></div>`);
+    on('#go','click',()=>{
+      for(const [,x] of votes)pl(x).votesGot++;
+      if(t.kicked!=null)applyKick(t.kicked,votes);
+      G.votes.push({day:G.day,votes,kicked:t.kicked});
+      kickScreen(t,checkWin(true));
+    });
+  });
+}
+
+/* ---------- lemari & prestasi ---------- */
+function lemari(tab){
+  screen='lemari';
+  const tabs=[['hijab','Kerudung'],['frame','Bingkai'],['title','Gelar'],['sticker','Stiker']];
+  const items=COSMETICS.filter(c=>c.slot===tab);
+  render(`
+  <div class="top"><button class="ghost small" id="back">Kembali</button><div class="grow"><h2>Lemari</h2></div><span class="pill"><span class="kue">●</span> ${P.kue} kue</span></div>
+  <div class="scroll">
+    <div class="row" style="justify-content:center">${av({...humanLook(),alive:true},72)}</div>
+    <div class="chips">${tabs.map(([k,l])=>`<button data-tab="${k}" class="${k===tab?'on':''}">${l}</button>`).join('')}</div>
+    ${items.map(c=>{const key=c.slot+':'+c.id,own=P.owned.includes(key),onNow=P[c.slot]===c.id;
+      const prev=c.color?`<span class="swatch" style="background:${c.color}"></span>`:`<span class="swatch" style="background:var(--maroon-deep)"></span>`;
+      const btn=c.slot==='sticker'?(own?'<span class="small" style="color:var(--pandan);font-weight:800">Dimiliki</span>':`<button class="small" data-buy="${key}" ${P.kue<c.price?'disabled':''}>${c.price} kue</button>`)
+        :onNow?'<span class="small" style="color:var(--pandan);font-weight:800">Dipakai</span>':own?`<button class="small" data-wear="${key}">Pakai</button>`:`<button class="small" data-buy="${key}" ${P.kue<c.price?'disabled':''}>${c.price} kue</button>`;
+      return `<div class="item">${prev}<span><b>${esc(c.name)}</b>${c.text&&c.slot==='sticker'?`<br><span class="small muted">${esc(c.text)}</span>`:''}</span>${btn}</div>`;}).join('')}
+    <p class="small muted">Kue didapat dari bermain dan menang kocokan. Semua barang hanya tampilan dan tidak mengubah peluang menang.</p>
+  </div>`);
+  app.onclick=e=>{
+    if(screen!=='lemari')return;
+    const b=e.target.closest('button');if(!b)return;
+    if(b.id==='back'){app.onclick=null;return homeScreen();}
+    if(b.dataset.tab)return lemari(b.dataset.tab);
+    if(b.dataset.buy){const [s,id]=b.dataset.buy.split(':'),c=cos(s,id);if(P.kue<c.price)return;P.kue-=c.price;P.owned.push(b.dataset.buy);if(s!=='sticker')P[s]=id;saveP();sfx.win();return lemari(tab);}
+    if(b.dataset.wear){const [s,id]=b.dataset.wear.split(':');P[s]=id;saveP();return lemari(tab);}
+  };
+}
+function achScreen(){
+  screen='ach';
+  const st=P.stats;
+  const roleStats=Object.entries(st.role).map(([r,v])=>`<span class="pill">${ROLE[r].short} ${v.w}/${v.g}</span>`).join(' ');
+  render(`
+  <div class="top"><button class="ghost small" id="back">Kembali</button><div class="grow"><h2>Prestasi</h2></div></div>
+  <div class="scroll">
+    <div class="card"><h3>Statistik</h3><p>${st.games} permainan · ${st.wins} menang${st.games?` (${Math.round(st.wins/st.games*100)}%)`:''}</p><div class="row wrap">${roleStats||'<span class="small muted">Belum ada.</span>'}</div></div>
+    ${ACH.map(a=>`<div class="ach ${P.ach[a.id]?'':'locked'}"><span class="ico">${P.ach[a.id]?'★':'?'}</span><span><b>${esc(a.name)}</b><br><span class="small muted">${esc(a.desc)}</span></span></div>`).join('')}
+  </div>`);
+  on('#back','click',homeScreen);
+}
+
+/* ---------- native ---------- */
+(function native(){
+  const C=window.Capacitor;
+  if(!(C&&C.isNativePlatform&&C.isNativePlatform()))return;
+  try{C.Plugins.StatusBar&&C.Plugins.StatusBar.setStyle({style:'DARK'});C.Plugins.StatusBar&&C.Plugins.StatusBar.setBackgroundColor({color:'#350c19'});}catch(e){}
+  const App=C.Plugins.App;if(!App)return;
+  App.addListener('backButton',()=>{
+    if(screen==='home')return App.exitApp();
+    if(['lemari','ach','botSetup','passSetup'].includes(screen))return homeScreen();
+    toast('Selesaikan permainannya dulu, atau tekan Beranda di akhir permainan.');
+  });
+})();
+
+homeScreen();
+})();
+</script>
+</body>
+</html>
