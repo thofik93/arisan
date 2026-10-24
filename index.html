@@ -199,6 +199,34 @@ details[open] summary{margin-bottom:8px}
 .reacts{display:block;margin-top:4px;font-size:12px;font-weight:700;color:var(--ink-muted)}
 .vlog{display:flex;flex-direction:column;gap:6px;margin-top:12px}
 .vline{display:flex;gap:8px;align-items:center;font-size:14px;background:var(--maroon-deep);border:1px solid var(--line);border-radius:12px;padding:6px 10px}
+.sheet-bg{position:fixed;inset:0;z-index:40;background:rgba(10,2,6,.55);display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:100%;max-width:560px;background:var(--maroon-deep);border:1px solid var(--line);border-bottom:0;border-radius:20px 20px 0 0;display:flex;flex-direction:column;gap:12px;
+  padding-block:16px calc(16px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-height:85%;overflow-y:auto}
+.sheet .grab{width:40px;height:4px;border-radius:2px;background:var(--line);align-self:center}
+.sheet .acts3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.sheet .seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.sheet .seg button.on{background:var(--emas);color:var(--ink);border-color:var(--emas)}
+.sheet .who-head{display:flex;gap:12px;align-items:center}
+.iconbtn{padding:6px 12px;font-size:18px;line-height:1;border-radius:12px}
+.mem{background:none;border:0;padding:0;border-radius:50%;cursor:pointer}
+.msg .avbtn{background:none;border:0;padding:0;border-radius:50%;cursor:pointer;line-height:0}
+.stage-btn{width:100%;padding:9px 14px;font-size:15px}
+.stage-btn.ready{background:var(--emas);color:var(--ink);border-color:var(--emas)}
+@media (prefers-reduced-motion:no-preference){.stage-btn.ready{animation:nudge 1.4s ease-in-out infinite}@keyframes nudge{0%,100%{box-shadow:0 0 0 0 rgba(242,182,50,.55)}50%{box-shadow:0 0 0 6px rgba(242,182,50,0)}}}
+.coach{width:100%;flex:none;
+  background:var(--paper);color:var(--ink);border-radius:14px;padding:12px 14px;display:flex;gap:10px;align-items:center;font-weight:700;font-size:14px}
+.coach button{flex:none;padding:6px 12px;font-size:14px;background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.rrow{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:15px}
+.rrow b{font-size:12px;letter-spacing:.06em;text-transform:uppercase;opacity:.75;padding-top:2px}
+.rolecard details{background:transparent;border:0;padding:0;font-size:14px}
+.rolecard details summary{font-weight:800;opacity:.8}
+.vlast{background:var(--paper);color:var(--ink);border-radius:12px;padding:8px 12px;font-weight:700;font-size:14px;display:flex;gap:8px;align-items:center}
+.linkish{background:none;border:0;padding:6px 0;color:var(--muted);text-decoration:underline;font-weight:700;align-self:center}
+.card.profile{flex-direction:row;gap:12px;align-items:center;text-align:left}
+.profile .grow{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.profile .nm{background:none;border:0;padding:0;color:var(--fg);font-weight:800;text-align:left;font-size:16px;text-decoration:underline dotted;text-underline-offset:3px}
+.bottom.stack{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bottom.stack .primary{grid-column:1 / -1}
 @media (prefers-reduced-motion:reduce){.toast,.opt .vbar i{transition:none}}
 </style>
 </head>
@@ -278,19 +306,19 @@ const PERS={
   manusia:  {label:'Kamu',     talk:.7, gull:1.4, noise:.15,lie:.5}
 };
 const ROLE={
-  bandar:   {name:'Bandar Bodong',team:'bandar',short:'Bandar',
+  bandar:   {name:'Bandar Bodong',team:'bandar',short:'Bandar',night:'Kas otomatis kamu tilep. Ajak satu orang ngerumpi supaya aksinya gagal.',win:'Kamu masih di grup setelah pertemuan terakhir.',
              desc:'Kamu mau kabur bawa uang kas. Tiap malam kas otomatis kamu tilep. Kamu juga mengajak satu orang ngerumpi sampai subuh: aksi malamnya gagal, dan besok pagi beredar fitnah tentang dia. Bertahanlah sampai pertemuan terakhir.',
              act:'Ajak ngerumpi siapa malam ini?'},
-  bendahara:{name:'Bendahara',team:'warga',short:'Bendahara',
+  bendahara:{name:'Bendahara',team:'warga',short:'Bendahara',night:'Audit satu orang. Kamu tahu pasti dia bandar atau bukan.',win:'Semua Bandar Bodong keluar dari grup.',
              desc:'Tiap malam kamu mengaudit satu orang dan tahu pasti apakah dia Bandar Bodong. Bagikan hasilnya, tapi hati-hati: bandar bisa pura-pura jadi bendahara juga.',
              act:'Audit siapa malam ini?'},
-  ketua:    {name:'Bu RT',team:'warga',short:'Bu RT',
+  ketua:    {name:'Bu RT',team:'warga',short:'Bu RT',night:'Jaga satu orang dari fitnah dan ajakan ngerumpi.',win:'Semua Bandar Bodong keluar dari grup.',
              desc:'Tiap malam kamu menjaga satu orang. Kalau bandar mengajak orang itu ngerumpi, ajakannya ditolak dan fitnahnya langsung kamu klarifikasi. Kamu sendiri terlalu sibuk untuk diajak ngerumpi.',
              act:'Jaga nama baik siapa malam ini?'},
-  gosip:    {name:'Ratu Gosip',team:'warga',short:'Ratu Gosip',
+  gosip:    {name:'Ratu Gosip',team:'warga',short:'Ratu Gosip',night:'Cari kabar soal satu orang. Kabarnya kadang meleset.',win:'Semua Bandar Bodong keluar dari grup.',
              get desc(){return `Tiap malam kamu mencari kabar tentang satu orang. Kabarmu benar ${Math.round(TUNE.gosipAcc*100)}% dari waktu.`;},
              act:'Cari kabar tentang siapa?'},
-  warga:    {name:'Warga',team:'warga',short:'Warga',
+  warga:    {name:'Warga',team:'warga',short:'Warga',night:'Intip satu rumah: apakah penghuninya keluar malam itu.',win:'Semua Bandar Bodong keluar dari grup.',
              get desc(){return `Tiap malam kamu mengintip satu rumah dari jendela. Bandar selalu keluar rumah, tapi peran lain yang beraksi juga keluar. Malam gelap, jadi orang yang keluar hanya terlihat ${Math.round(TUNE.intipSeen*100)}% dari waktu.`;},
              act:'Intip rumah siapa malam ini?'}
 };
@@ -507,7 +535,7 @@ function newGame(opts){
     players=bots.map(b=>({name:b.name,bot:b.pers,human:false,hijab:b.hijab,skin:b.skin,hair:b.hair,look:b.look}));
     if(opts.mode!=='sim'){
       const look=humanLook();
-      players.unshift({name:'Bu '+(P.name||'Kamu'),bot:null,human:true,...look,title:(cos('title',P.title)||{}).text||''});
+      players.unshift({name:'Bu '+(P.name||'Tamu'),bot:null,human:true,...look,title:(cos('title',P.title)||{}).text||''});
     }
   }
   players.forEach((p,i)=>{p.id=i;p.role=roles[i];p.alive=true;p.beliefs={};p.saidInfo=false;p.votesGot=0;p.framed=0;
@@ -1276,7 +1304,7 @@ function dramaSpeak(s){
 /* Sidang sebelum voting: tersangka membela diri, lalu saksi membongkar */
 function sidangSpeak(s){
   if(s.sidang==='open')return sysEvent(`<div class="sys drama">⚖️ SIDANG DIMULAI. Dua orang yang paling dicurigai diberi kesempatan membela diri.</div>`,null,'shot');
-  if(s.sidang==='close')return sysEvent(`<div class="sys alert">Sidang selesai. Saatnya voting!</div>`,()=>{const b=document.getElementById('voteBtn');if(b){b.textContent='Voting sekarang';b.classList.add('primary');}},'shot');
+  if(s.sidang==='close')return sysEvent(`<div class="sys alert">Sidang selesai. Saatnya voting!</div>`,()=>setStage('vote'),'shot');
   const p=pl(s.who);if(!p.alive)return null;
   if(s.sidang==='bela'){
     if(p.human)return sysEvent(`<div class="sys alert">⚖️ Kamu termasuk tersangka! Tulis pembelaanmu sekarang.</div>`,()=>{chat.sent=Math.min(chat.sent,MAX_SEND-1);const i=document.getElementById('msgIn'),b=document.getElementById('send');if(i){i.disabled=false;b.disabled=false;}chat.waitDefense=Date.now();},'shot');
@@ -1507,12 +1535,65 @@ function simulate(games,n){
 }
 window.ArisanSim={simulate,TUNE,debug:{get G(){return G;},newGame,followUps,deductions,genText,parseHuman,compose,textFor,evidence,prob,pubSusp,alive,botNightAction,resolveNight,planSpeakers,botSpeak,applyMsg,botVote,tally}};
 
+/* ================= komponen: lembar bawah, menu permainan, tips sekali tampil ================= */
+function closeSheet(){const s=document.getElementById('sheet');if(s)s.remove();}
+function openSheet(html,onClick){
+  closeSheet();
+  document.body.insertAdjacentHTML('beforeend',`<div class="sheet-bg" id="sheet"><div class="sheet" role="dialog" aria-modal="true"><span class="grab"></span>${html}</div></div>`);
+  const bg=document.getElementById('sheet');
+  bg.addEventListener('click',e=>{if(e.target===bg){closeSheet();return;}const b=e.target.closest('button');if(b&&onClick)onClick(b,e);});
+  return bg;
+}
+function openGameMenu(){
+  const inGame=G&&!['home','end'].includes(screen);
+  const draw=()=>`<h3>Menu</h3>
+    <div><span class="small muted">Kecepatan obrolan</span><div class="seg">${Object.entries(SPEEDS).map(([k,v])=>`<button data-speed="${k}" class="${k===chatSpeed?'on':''}">${v.label}</button>`).join('')}</div></div>
+    <button data-act="sound">${muted?'🔇 Suara mati (nyalakan)':'🔊 Suara nyala (matikan)'}</button>
+    <details><summary>Cara main</summary>${howTo()}</details>
+    ${inGame?'<button data-act="quit" class="ghost">Keluar ke beranda</button>':''}
+    <button data-act="close" class="primary">Tutup</button>`;
+  const el=openSheet(draw(),(b)=>{
+    if(b.dataset.speed){chatSpeed=b.dataset.speed;store.set('chatSpeed',chatSpeed);el.querySelector('.sheet').innerHTML='<span class="grab"></span>'+draw();return;}
+    if(b.dataset.act==='sound'){muted=!muted;store.set('muted',muted);el.querySelector('.sheet').innerHTML='<span class="grab"></span>'+draw();return;}
+    if(b.dataset.act==='close')return closeSheet();
+    if(b.dataset.act==='quit'){el.querySelector('.sheet').innerHTML=`<span class="grab"></span><h3>Keluar dari permainan?</h3><p class="small muted">Permainan ini tidak disimpan.</p><div class="bottom stack" style="border:0;padding:0;background:none"><button data-act="quitYes" class="primary">Ya, keluar</button><button data-act="close">Batal</button></div>`;return;}
+    if(b.dataset.act==='quitYes'){closeSheet();app.onclick=null;homeScreen();}
+  });
+}
+/* Tips muncul sekali saja, tepat saat dibutuhkan */
+function coach(key,text){
+  P.seen=P.seen||{};if(P.seen[key])return;
+  P.seen[key]=true;saveP();
+  const old=document.getElementById('coach');if(old)old.remove();
+  // tip menempel di alur halaman (bukan melayang) supaya tidak menutupi pertanyaan
+  const host=app.querySelector('.chathead')||app.querySelector('.scroll');if(!host)return;
+  host.insertAdjacentHTML(host.classList.contains('chathead')?'beforeend':'afterbegin',`<div class="coach" id="coach" role="status"><span style="flex:1">${text}</span><button id="coachOk">Oke</button></div>`);
+  const c=document.getElementById('coach');
+  document.getElementById('coachOk').onclick=()=>c.remove();
+  setTimeout(()=>{if(c.isConnected)c.remove();},9000);
+}
+const MENU_BTN='<button class="ghost iconbtn" id="menuBtn" aria-label="Menu">⋯</button>';
+
 /* ================= layar ================= */
 let screen='home';
-function render(html){app.innerHTML=html;app.scrollTop=0;}
+function render(html){closeSheet();const c=document.getElementById('coach');if(c)c.remove();app.innerHTML=html;app.scrollTop=0;const mb=app.querySelector('#menuBtn');if(mb)mb.onclick=openGameMenu;}
 function on(sel,ev,fn){app.querySelectorAll(sel).forEach(el=>el.addEventListener(ev,fn));}
 const rankName=()=>RANKS[rankIdx(P.xp)][1];
 
+/* Nama ditanyakan sekali, saat pertama kali main. Boleh dilewati. */
+function askName(next,force){
+  if(!force&&(P.name||P.nameAsked)){next&&next();return;}
+  const el=openSheet(`<h3>Panggil kamu siapa?</h3><p class="small muted">Nama ini muncul di grup arisan.</p>
+    <input type="text" id="nameSheetIn" maxlength="14" placeholder="contoh: Ani" value="${esc(P.name)}" aria-label="Nama kamu">
+    <div class="bottom stack" style="border:0;padding:0;background:none"><button class="primary" data-act="ok">${next?'Mulai':'Simpan'}</button><button data-act="skip">${next?'Lewati':'Batal'}</button></div>`,
+    b=>{
+      if(b.dataset.act==='ok'){P.name=document.getElementById('nameSheetIn').value.replace(/[<>]/g,'').trim().slice(0,14);}
+      if(!b.dataset.act)return;
+      P.nameAsked=true;saveP();closeSheet();
+      if(next)next();else homeScreen();
+    });
+  const i=el.querySelector('input');if(i)setTimeout(()=>i.focus(),50);
+}
 function homeScreen(){
   screen='home';
   if(G)G.token++;
@@ -1522,44 +1603,44 @@ function homeScreen(){
   const me={...humanLook(),alive:true};
   const hs=sponsorFor('harian');
   const hText=hs?String(hs.slots.harian.text||('Dipersembahkan oleh '+hs.brand)).slice(0,120):'';
+  const n=store.get('lastN',6);
   render(`
   <div class="scroll">
     <div class="row between">
       <div><span class="eyebrow">Grup Arisan RT 05</span><h1 class="logo">ARISAN</h1></div>
-      <button class="ghost small" id="muteBtn" aria-pressed="${muted}">${muted?'Suara: mati':'Suara'}</button>
+      <button class="ghost iconbtn" id="muteBtn" aria-label="${muted?'Nyalakan suara':'Matikan suara'}" aria-pressed="${muted}">${muted?'🔇':'🔊'}</button>
     </div>
     <p class="muted">Ada Bandar Bodong di grup arisan yang mau kabur bawa uang kas. Temukan dia sebelum pertemuan ke-${TUNE.maxDay} selesai.</p>
-    <div class="card">
-      <div class="row">${av(me,52)}<div class="grow" style="flex:1;min-width:0">
-        <label class="small muted" for="nameIn">Nama kamu</label>
-        <input type="text" id="nameIn" maxlength="14" placeholder="contoh: Ani" value="${esc(P.name)}"></div></div>
-      <div class="row between"><b>${esc(rankName())}</b><span class="pill"><span class="kue">●</span> ${P.kue} kue</span></div>
-      <div class="bar"><i style="width:${pct}%"></i></div>
-      <span class="small muted">${next?`${P.xp} / ${next[0]} XP menuju ${esc(next[1])}`:`${P.xp} XP · pangkat tertinggi`}${P.daily.streak>1?` · Datang ${P.daily.streak} hari berturut-turut`:''}</span>
-    </div>
     <div class="menu">
-      <button class="primary" id="playBot"><b>Main sama ibu-ibu</b><span>Kamu dan 5–7 ibu-ibu bot. Sekitar 5 menit.</span></button>
-      <button id="playDaily"><b>Arisan Harian #${dailyNo()} ${dailyDone?'✓':''}</b><span>${dailyDone?`Sudah dimainkan hari ini (${dailyDone.win?'menang':'kalah'}). Main lagi untuk latihan.`:'Soal yang sama untuk semua orang hari ini. Bandingkan hasilmu.'}</span>${hs?`<span class="sp-line">${esc(hText)} ${sponsorChip(hs.brand)}</span>`:''}</button>
-      <button id="playPass"><b>Main bareng, oper HP</b><span>4–8 orang di satu HP. Cocok buat arisan beneran.</span></button>
+      <button class="primary" id="playBot"><b>Main sama ibu-ibu</b><span>${n} orang · sekitar 5 menit</span></button>
+      <button class="linkish" id="setN" style="align-self:flex-start;padding:0 4px">Ubah jumlah anggota (${n})</button>
+      <button id="playDaily"><b>Arisan Harian #${dailyNo()} ${dailyDone?'✓':''}</b><span>${dailyDone?`Sudah dimainkan hari ini (${dailyDone.win?'menang':'kalah'}). Main lagi untuk latihan.`:'Soal yang sama untuk semua orang hari ini.'}</span>${hs?`<span class="sp-line">${esc(hText)} ${sponsorChip(hs.brand)}</span>`:''}</button>
+      <button id="playPass"><b>Main bareng, oper HP</b><span>4–8 orang di satu HP</span></button>
+    </div>
+    <div class="card profile">
+      ${av(me,44)}
+      <div class="grow">
+        <div class="row between"><button class="nm" id="nameBtn">${P.name?'Bu '+esc(P.name):'Atur namamu'}</button><span class="pill"><span class="kue">●</span> ${P.kue} kue</span></div>
+        <span class="small muted">${esc(rankName())}${next?` · ${P.xp}/${next[0]} XP`:''}${P.daily.streak>1?` · ${P.daily.streak} hari berturut-turut`:''}</span>
+        <div class="bar"><i style="width:${pct}%"></i></div>
+      </div>
     </div>
     <div class="grid2">
       <button id="goLemari">Lemari</button>
       <button id="goAch">Prestasi ${Object.keys(P.ach).length}/${ACH.length}</button>
     </div>
     <details><summary>Cara main</summary>${howTo()}</details>
-    <details><summary>Peluang kocokan arisan</summary><p class="small">Setelah setiap permainan melawan bot, ada kocokan arisan. Peluangmu menang sama dengan 1 dibagi jumlah pemain, ditambah ${Math.round(KOCOK_BASE_BONUS*100)}% untuk setiap kocokan yang belum kamu menangkan, maksimal ${Math.round(KOCOK_MAX*100)}%. Hadiahnya ${KOCOK_PRIZE} kue. Kue hanya bisa didapat dari bermain dan tidak bisa dibeli. Peluangmu sekarang di permainan 6 orang: ${Math.round(kocokChance(6)*100)}%.</p></details>
     <p class="small muted" style="text-align:center">Semua tokoh fiktif. Kemiripan dengan ibu-ibu di komplekmu hanya kebetulan.</p>
   </div>`);
-  const nameIn=document.getElementById('nameIn');
-  nameIn.addEventListener('change',()=>{P.name=nameIn.value.replace(/[<>]/g,'').trim().slice(0,14);saveP();});
   on('#muteBtn','click',()=>{muted=!muted;store.set('muted',muted);homeScreen();});
-  on('#playBot','click',()=>{unlockAudio();saveName();botSetup();});
-  on('#playDaily','click',()=>{unlockAudio();saveName();startBotGame({n:6,daily:true});});
-  on('#playPass','click',()=>{unlockAudio();saveName();passSetup();});
+  on('#nameBtn','click',()=>askName(null,true));
+  on('#playBot','click',()=>{unlockAudio();askName(()=>startBotGame({n:store.get('lastN',6)}));});
+  on('#setN','click',botSetup);
+  on('#playDaily','click',()=>{unlockAudio();askName(()=>startBotGame({n:6,daily:true}));});
+  on('#playPass','click',()=>{unlockAudio();passSetup();});
   on('#goLemari','click',()=>lemari('hijab'));
   on('#goAch','click',achScreen);
 }
-function saveName(){const el=document.getElementById('nameIn');if(el){P.name=el.value.replace(/[<>]/g,'').trim().slice(0,14);saveP();}}
 function howTo(){return `<ol class="steps small">
   <li>Setiap permainan, peran diacak. Satu orang (dua kalau pemainnya ${TUNE.twoBandarFrom} atau lebih) adalah <b>Bandar Bodong</b>.</li>
   <li><b>Malam:</b> semua orang diam-diam memilih satu target sesuai perannya. Bandar menilep kas dan mengajak satu orang ngerumpi: aksi orang itu gagal dan dia difitnah. Bendahara mengaudit. Bu RT menjaga satu orang. Ratu Gosip mencari kabar. Warga mengintip rumah.</li>
@@ -1573,7 +1654,7 @@ function howTo(){return `<ol class="steps small">
 function botSetup(){
   screen='botSetup';let n=store.get('lastN',6);
   const draw=()=>render(`
-  <div class="top"><button class="ghost small" id="back">Kembali</button><div class="grow"><h2>Main sama ibu-ibu</h2></div></div>
+  <div class="top"><button class="ghost small" id="back">Kembali</button><div class="grow"><h2>Atur anggota</h2></div></div>
   <div class="scroll">
     <div class="card"><h3>Jumlah anggota arisan</h3>
       <div class="stepper"><button class="small" id="minus" ${n<=6?'disabled':''}>−</button><b>${n}</b><button class="small" id="plus" ${n>=8?'disabled':''}>+</button>
@@ -1604,15 +1685,15 @@ function roleReveal(){
   const me=human(),r=ROLE[me.role];
   const partner=me.role==='bandar'?G.players.filter(p=>p.role==='bandar'&&p.id!==me.id):[];
   render(`
-  <div class="top"><div class="grow"><h2>${G.daily?`Arisan Harian #${dailyNo()}`:'Peranmu'}</h2><span class="sub">${G.n} anggota · ${G.players.filter(p=>p.role==='bandar').length} Bandar Bodong</span></div></div>
+  <div class="top"><div class="grow"><h2>${G.daily?`Arisan Harian #${dailyNo()}`:'Peranmu'}</h2><span class="sub">${G.n} anggota · ${G.players.filter(p=>p.role==='bandar').length} Bandar Bodong</span></div>${MENU_BTN}</div>
   <div class="scroll">
     <div class="rolecard ${me.role}">
       <span class="small" style="font-weight:800">Kamu adalah</span>
       <span class="rname">${r.name}</span>
-      <p>${r.desc}</p>
-      ${partner.length?`<p><b>Rekanmu:</b> ${partner.map(p=>esc(p.name)).join(', ')}. Jangan sampai saling tuduh.</p>`:''}
+      <div class="rrow"><b>Tiap malam</b><span>${r.night}</span><b>Menang kalau</b><span>${r.win}</span>${partner.length?`<b>Rekanmu</b><span>${partner.map(p=>esc(p.name)).join(', ')}</span>`:''}</div>
+      <details><summary>Selengkapnya</summary><p>${r.desc}</p></details>
     </div>
-    <div class="card"><h3>Anggota grup</h3><p class="small muted">Sandal jepit di pojok avatar menunjukkan warna sandal tiap orang. Perhatikan kalau ada kabar soal sandal.</p>
+    <div class="card"><h3>Anggota grup</h3><p class="small muted">Ingat warna sandal tiap orang. Kadang ada kabar soal sandal.</p>
       <div class="people">${G.players.map(p=>`<div class="person" style="cursor:default">${av(p,44,true)}<span>${esc(p.name)}${p.human?' (kamu)':''}</span><span class="tag"><span class="sandal-ic">${sandalSVG(p.sandalHex,14)}</span>Sandal ${esc(p.sandal)}</span></div>`).join('')}</div></div>
   </div>
   <div class="bottom"><button class="primary" id="go">Mulai malam pertama</button></div>`);
@@ -1626,7 +1707,7 @@ function nightScreen(){
   const r=ROLE[me.role];let sel=null;
   const targets=alive().filter(p=>p.id!==me.id&&!(me.role==='bandar'&&p.role==='bandar'));
   const draw=()=>render(`
-  <div class="top"><div class="grow"><h2>Malam ke-${G.day}</h2><span class="sub">Kas ${jt(G.kas)} · ${r.name}</span></div></div>
+  <div class="top"><div class="grow"><h2>Malam ke-${G.day}</h2><span class="sub">Kas ${jt(G.kas)} · ${r.name}</span></div>${MENU_BTN}</div>
   <div class="scroll">
     <p class="eyebrow">${r.name}</p><h2>${r.act}</h2>
     <p class="small muted">${me.role==='bandar'?'Kas otomatis kamu tilep malam ini. Orang yang kamu ajak ngerumpi gagal beraksi dan jadi korban fitnah. Bandar tetap terlihat keluar rumah.':me.role==='warga'?'Kamu cuma mengintip dari jendela, jadi kamu sendiri tidak dihitung keluar rumah.':'Pilihanmu rahasia.'}</p>
@@ -1634,6 +1715,7 @@ function nightScreen(){
   </div>
   <div class="bottom">${me.role==='bandar'?'<button class="ghost" id="skip">Tidak mengajak siapa pun</button>':''}<button class="primary" id="go" ${sel==null?'disabled':''}>${sel==null?'Pilih satu orang':'Kunci pilihan'}</button></div>`);
   draw();
+  coach('night','Ketuk satu orang, lalu tekan <b>Kunci pilihan</b>. Pilihanmu rahasia.');
   app.onclick=e=>{
     if(screen!=='night')return;
     const b=e.target.closest('[data-id]');if(b){sel=+b.dataset.id;sfx.pop();draw();return;}
@@ -1670,7 +1752,7 @@ function nightResult(){
     html=`<div class="result ${resultTone(r)}">${resultText(r)}</div>`;
   }
   render(`
-  <div class="top"><div class="grow"><h2>Malam ke-${G.day}</h2><span class="sub">Hasil diam-diam</span></div></div>
+  <div class="top"><div class="grow"><h2>Malam ke-${G.day}</h2><span class="sub">Hasil diam-diam</span></div>${MENU_BTN}</div>
   <div class="scroll">${html}<p class="small muted">Hanya kamu yang tahu hasil ini. Mau dibagikan di grup atau dirahasiakan, terserah kamu.</p></div>
   <div class="bottom"><button class="primary" id="go">Pagi, buka grup</button></div>`);
   on('#go','click',dayScreen);
@@ -1693,12 +1775,10 @@ function dayScreen(){
   const last=G.day>=TUNE.maxDay;
   render(`
   <div class="chathead">
-    <div class="row between"><div><h2 style="font-size:1.1rem">Grup Arisan RT 05</h2><span class="small muted">Pertemuan ${G.day}/${TUNE.maxDay}${last?' · terakhir!':''}</span></div>
-      <button class="small" id="voteBtn">Mulai sidang</button></div>
-    <div class="kas"><span>Kas arisan</span><span class="v">${jt(G.kas)}</span></div>
+    <div class="row between"><div><h2 style="font-size:1.1rem">Grup Arisan RT 05</h2><span class="small muted">Pertemuan ${G.day}/${TUNE.maxDay}${last?' · terakhir!':''} · Kas <b class="kasv">${jt(G.kas)}</b></span></div>${MENU_BTN}</div>
     <div class="kasbar"><i style="width:${G.kas/KAS_START*100}%"></i></div>
-    <div class="row between"><div class="members">${alive().map(p=>av(p,30,true)).join('')}</div><span class="pill heat" id="heat">${heatLabel()}</span></div>
-    <div class="row between"><span class="small muted" id="holdNote" hidden>Ibu-ibu menunggu kamu selesai mengetik…</span><button class="small ghost" id="speedBtn" style="margin-left:auto">Kecepatan: ${SPEEDS[chatSpeed].label}</button></div>
+    <div class="row between"><div class="members" id="members">${alive().map(p=>p.human?av(p,30,true):`<button class="mem" data-who="${p.id}" aria-label="${esc(p.name)}">${av(p,30,true)}</button>`).join('')}</div><span class="pill heat" id="heat">${heatLabel()}</span></div>
+    <span class="small muted" id="holdNote" hidden>Ibu-ibu menunggu kamu selesai mengetik…</span>
   </div>
   <div class="feed" id="feed" aria-live="polite">
     <div class="sys narr">🎬 ${esc(narasi())}</div>
@@ -1707,17 +1787,27 @@ function dayScreen(){
     ${last?`<div class="sys alert">Ini pertemuan terakhir. Kalau bandar tidak ketahuan hari ini, dia kabur bawa sisa kas!</div>`:''}
     ${!me.alive?'<div class="sys">Kamu sudah dikeluarkan dari grup. Kamu masih bisa membaca obrolan.</div>':''}
   </div>
-  ${me.alive?composerHTML():'<div class="composer"><button id="fastBtn">Percepat obrolan</button></div>'}`);
+  ${me.alive?composerHTML():'<div class="composer"><button class="stage-btn" id="stageBtn">⚖️ Lanjut ke sidang</button><button id="fastBtn">Percepat obrolan</button></div>'}`);
   bindComposer();
-  on('#voteBtn','click',()=>chat.sidangDone?startVote():startSidang());
+  on('#stageBtn','click',()=>chat.sidangDone?startVote():startSidang());
   setTimeout(()=>sfx.jeng(),400);
   on('#fastBtn','click',()=>{chat.fast=true;});
-  on('#speedBtn','click',e=>{const k=Object.keys(SPEEDS);chatSpeed=k[(k.indexOf(chatSpeed)+1)%k.length];store.set('chatSpeed',chatSpeed);e.target.textContent='Kecepatan: '+SPEEDS[chatSpeed].label;});
+  // ketuk avatar di deretan anggota atau di gelembung chat untuk beraksi
+  const whoTap=e=>{const b=e.target.closest('[data-who]');if(b)openWho(+b.dataset.who);};
+  document.getElementById('members').addEventListener('click',whoTap);
+  document.getElementById('feed').addEventListener('click',whoTap);
+  if(me.alive)setTimeout(()=>coach('chat','Ketuk <b>avatar</b> seseorang untuk menuduh, membela, atau bertanya. Bisa juga ketik bebas.'),1500);
   scrollFeed();
   setTimeout(()=>tick(tok),900);
 }
 function narasi(){const others=alive().filter(p=>!p.human);return pickR(NARASI).replace('{t}',others.length?pickR(others).name:'tetangga');}
 /* Sidang: obrolan sisa dihentikan, dua tersangka teratas membela diri, lalu seorang saksi membongkar */
+function setStage(state){
+  const b=document.getElementById('stageBtn');if(!b)return;
+  b.classList.toggle('ready',state==='quiet'||state==='vote');
+  b.textContent={quiet:'⚖️ Obrolan mulai sepi · Lanjut ke sidang',chat:'⚖️ Lanjut ke sidang',sidang:'Sidang berlangsung… lewati ke voting',vote:'🗳️ Voting sekarang'}[state];
+  if(state==='quiet')coach('sidang','Kalau sudah cukup ngobrol, lanjut ke <b>sidang</b>. Setelah itu kalian voting.');
+}
 function startSidang(){
   if(screen!=='day'||chat.sidang)return;
   chat.sidang=true;const tok=++G.token;
@@ -1733,7 +1823,7 @@ function startSidang(){
   if(witness&&target!=null)chat.queue.push({sidang:'saksi',who:witness.id,target,drama:'s'});
   chat.queue.push({sidang:'close',drama:'s'});
   chat.sidangDone=true;chat.done=false;
-  const b=document.getElementById('voteBtn');if(b)b.textContent='Lewati ke voting';
+  setStage('sidang');
   sfx.jeng();
   setTimeout(()=>tick(tok),500);
 }
@@ -1758,7 +1848,8 @@ function msgHTML(m,id){
   const title=p.title?` <small>· ${esc(p.title)}</small>`:'';
   const cls=[me?'me':'',claim?'claim':'',m.type==='cry'?'cry':'',m.type==='salah'?'salah':''].join(' ');
   const q=m.replyTo&&m.replyTo.from!=null&&m.replyTo.text?`<span class="quote">↪ ${esc(pl(m.replyTo.from).name)}: ${esc(m.replyTo.text.length>48?m.replyTo.text.slice(0,48)+'…':m.replyTo.text)}</span>`:'';
-  return `<div class="msg ${cls}" ${id?`id="${id}"`:''}>${av(p,30)}<div class="bubble"><span class="who" style="color:${p.hijab}">${esc(p.name)}${title}</span>${q}<span class="txt">${esc(m.text)}</span>${m.sponsor?`<span class="sp-under">${sponsorChip(m.sponsor)}</span>`:''}</div></div>`;
+  const face=!me&&p.alive&&!p.human&&screen==='day'?`<button class="avbtn" data-who="${p.id}" aria-label="Aksi untuk ${esc(p.name)}">${av(p,30)}</button>`:av(p,30);
+  return `<div class="msg ${cls}" ${id?`id="${id}"`:''}>${face}<div class="bubble"><span class="who" style="color:${p.hijab}">${esc(p.name)}${title}</span>${q}<span class="txt">${esc(m.text)}</span>${m.sponsor?`<span class="sp-under">${sponsorChip(m.sponsor)}</span>`:''}</div></div>`;
 }
 /* Kecepatan obrolan: lama mengetik mengikuti panjang pesan, ditambah jeda antar-pesan untuk berpikir */
 const SPEEDS={
@@ -1777,7 +1868,7 @@ const later=(tok,ms,fn)=>setTimeout(()=>{if(G&&G.token===tok&&screen==='day')fn(
 function tick(tok){
   if(!G||G.token!==tok||screen!=='day')return;
   if(chat.idx>=chat.queue.length){
-    if(!chat.done){chat.done=true;addToFeed(chat.sidangDone?`<div class="sys">Tekan <b>Voting sekarang</b> kalau sudah siap.</div>`:`<div class="sys">Obrolan mulai sepi. Tekan <b>Mulai sidang</b> kalau sudah siap.</div>`);}
+    if(!chat.done){chat.done=true;setStage(chat.sidangDone?'vote':'quiet');}
     return;
   }
   // tunggu dulu kalau pemain sedang mengetik, kecuali sedang dipercepat
@@ -1822,16 +1913,34 @@ function tick(tok){
   });
 }
 
+/* Lembar aksi saat avatar diketuk: satu ketukan untuk menuduh, membela, atau bertanya */
+function openWho(id){
+  const me=human(),p=pl(id);
+  if(!me||!me.alive||!p||!p.alive||p.human||screen!=='day')return;
+  const left=MAX_SEND-chat.sent,n=p.name;
+  openSheet(`<div class="who-head">${av(p,56,true)}<div><h3>${esc(n)}</h3><span class="small muted">Sandal ${esc(p.sandal)}${p.bot?' · '+PERS[p.bot].label:''}</span></div></div>
+    ${left>0?`<div class="acts3"><button data-say="accuse">😤 Curiga</button><button data-say="defend">🤝 Bela</button><button data-say="ask">❓ Tanya</button></div>
+    <span class="small muted">Sisa ${left} pesan hari ini.</span>`:'<p class="small muted">Jatah pesanmu hari ini sudah habis.</p>'}
+    <button data-say="close" class="ghost">Tutup</button>`,
+    b=>{
+      const t={accuse:`Aku curiga sama ${n}.`,defend:`Aku yakin ${n} bukan bandar.`,ask:`${n}, semalam kamu ke mana?`}[b.dataset.say];
+      closeSheet();if(t)sendHuman(t);
+    });
+}
+
 /* ---------- kotak pesan pemain ---------- */
 const QUICK=[
   {id:'accuse',label:'Curiga',tpl:'Aku curiga sama {t}.'},
   {id:'defend',label:'Bela',tpl:'Aku yakin {t} bukan bandar.'},
-  {id:'claimBendT',label:'Ngaku Bendahara: BANDAR',tpl:'Aku Bendahara. {t} itu BANDAR!'},
-  {id:'claimBendF',label:'Ngaku Bendahara: bersih',tpl:'Aku Bendahara. {t} bersih.'},
-  {id:'reportT',label:'Lihat keluar rumah',tpl:'Semalam aku lihat {t} keluar rumah.'},
-  {id:'reportF',label:'Lihat di rumah',tpl:'Semalam {t} di rumah aja.'},
   {id:'ask',label:'Tanya',tpl:'Menurut kalian siapa bandarnya?',noT:true},
-  {id:'swear',label:'Sumpah',tpl:'Demi Allah, aku bukan bandar!',noT:true}
+  {id:'swear',label:'Sumpah',tpl:'Demi Allah, aku bukan bandar!',noT:true},
+  {id:'claim',label:'Ngaku…',sheet:true}
+];
+const CLAIMS=[
+  {id:'claimBendT',label:'Aku Bendahara: dia BANDAR',tpl:'Aku Bendahara. {t} itu BANDAR!'},
+  {id:'claimBendF',label:'Aku Bendahara: dia bersih',tpl:'Aku Bendahara. {t} bersih.'},
+  {id:'reportT',label:'Aku lihat dia keluar rumah',tpl:'Semalam aku lihat {t} keluar rumah.'},
+  {id:'reportF',label:'Aku lihat dia di rumah',tpl:'Semalam {t} di rumah aja.'}
 ];
 const MAX_SEND=5;
 function composerHTML(){
@@ -1840,8 +1949,9 @@ function composerHTML(){
   return `<div class="composer">
     <div class="chips" id="acts">${QUICK.map(a=>`<button data-act="${a.id}">${a.label}</button>`).join('')}${stickers.map((c,i)=>`<button data-sticker="${i}">${esc(c.name.replace('Stiker ',''))}</button>`).join('')}</div>
     <div class="targets" id="tgts" hidden>${alive().filter(p=>p.id!==me.id).map(p=>`<button data-t="${p.id}">${av(p,26,true)}${esc(p.name.replace('Bu ',''))}</button>`).join('')}</div>
-    <form class="row" id="msgForm"><input type="text" id="msgIn" maxlength="160" autocomplete="off" placeholder="Tulis pesan, sebut nama ibu-ibunya…" aria-label="Pesan"><button class="primary small" id="send" type="submit">Kirim</button></form>
-    <span class="small muted" id="sendInfo">Ketik bebas atau pakai tombol cepat. Sisa ${MAX_SEND} pesan hari ini.</span>
+    <form class="row" id="msgForm"><input type="text" id="msgIn" maxlength="160" autocomplete="off" placeholder="Tulis pesan, sebut nama ibu-ibunya…" aria-label="Pesan"><button class="primary small" id="send" type="submit">Kirim · ${MAX_SEND}</button></form>
+    <span class="small muted" id="sendInfo" hidden></span>
+    <button class="stage-btn" id="stageBtn">⚖️ Lanjut ke sidang</button>
   </div>`;
 }
 function bindComposer(){
@@ -1851,7 +1961,15 @@ function bindComposer(){
   acts.onclick=e=>{
     const sb=e.target.closest('[data-sticker]');if(sb){input.value=stickers[+sb.dataset.sticker].text;tg.hidden=true;input.focus();return;}
     const b=e.target.closest('[data-act]');if(!b)return;
-    const q=QUICK.find(x=>x.id===b.dataset.act);chat.act=q;
+    const q=QUICK.find(x=>x.id===b.dataset.act);
+    if(q.sheet){
+      openSheet(`<h3>Ngaku apa?</h3>${CLAIMS.map(c=>`<button data-claim="${c.id}">${c.label}</button>`).join('')}<button class="ghost" data-claim="">Batal</button>`,cb=>{
+        const c=CLAIMS.find(x=>x.id===cb.dataset.claim);closeSheet();if(!c)return;
+        chat.act=c;acts.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));tg.hidden=false;
+      });
+      return;
+    }
+    chat.act=q;
     acts.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
     if(q.noT){input.value=q.tpl;tg.hidden=true;input.focus();}else tg.hidden=false;
   };
@@ -1886,9 +2004,12 @@ function sendHuman(raw){
   document.getElementById('msgIn').value='';chat.act=null;
   document.querySelectorAll('#acts button').forEach(x=>x.classList.remove('on'));
   document.getElementById('tgts').hidden=true;
-  const left=MAX_SEND-chat.sent;
-  document.getElementById('sendInfo').textContent=left<=0?'Jatah pesanmu hari ini habis. Simak yang lain, lalu voting.':`Sisa ${left} pesan hari ini.`;
-  if(left<=0){document.getElementById('send').disabled=true;document.getElementById('msgIn').disabled=true;}
+  const left=MAX_SEND-chat.sent,info=document.getElementById('sendInfo');
+  document.getElementById('send').textContent=`Kirim · ${Math.max(0,left)}`;
+  // pesan yang tidak menyebut siapa pun: beri petunjuk, dua kali saja
+  if(hm.type==='chat'&&(P.tipChat||0)<2){P.tipChat=(P.tipChat||0)+1;saveP();info.textContent='Tip: sebut nama orangnya supaya ibu-ibu paham, misalnya "aku curiga sama Bu Ratna".';info.hidden=false;}
+  else info.hidden=true;
+  if(left<=0){info.textContent='Jatah pesanmu hari ini habis. Simak yang lain, lalu lanjut ke sidang.';info.hidden=false;document.getElementById('send').disabled=true;document.getElementById('msgIn').disabled=true;}
 }
 
 /* ---------- voting (mode bot) ---------- */
@@ -1905,27 +2026,30 @@ function startVote(only,revote){
   const shown=new Map();
   const draw=()=>{
     const total=[...shown.values()].reduce((a,b)=>a+b.length,0);
-    app.querySelector('#poll').innerHTML=cands.map(p=>{
+    // diri sendiri tidak ditampilkan, kecuali ternyata ada yang memilihmu
+    app.querySelector('#poll').innerHTML=cands.filter(p=>p.id!==me.id||(shown.get(p.id)||[]).length).map(p=>{
       const vs=shown.get(p.id)||[];
-      return `<button class="opt ${sel===p.id?'sel':''}" data-id="${p.id}" ${shown.size||p.id===me.id||!canVote?'disabled':''}>${av(p,36,true)}<span><b>${esc(p.name)}</b></span><span class="count">${shown.size?vs.length:''}</span>
-        <span class="vbar"><i style="width:${total?vs.length/Math.max(1,votes.length)*100:0}%"></i></span>${vs.length?`<span class="voters">${vs.map(v=>av(pl(v),18)).join('')}</span>`:''}</button>`;
+      return `<button class="opt ${sel===p.id?'sel':''}" data-id="${p.id}" ${shown.size||p.id===me.id||!canVote?'disabled':''}>${av(p,36,true)}<span><b>${esc(p.name)}</b>${p.id===me.id?' (kamu)':''}</span><span class="count">${shown.size?vs.length:''}</span>
+        ${shown.size?`<span class="vbar"><i style="width:${total?vs.length/Math.max(1,votes.length)*100:0}%"></i></span>`:''}${vs.length?`<span class="voters">${vs.map(v=>av(pl(v),18)).join('')}</span>`:''}</button>`;
     }).join('');
   };
   render(`
-  <div class="top"><div class="grow"><h2>${revote?'Voting ulang':'Voting pertemuan '+G.day}</h2><span class="sub">${revote?'Hanya antara yang seri':'Siapa yang dikeluarkan dari grup?'}</span></div></div>
-  <div class="scroll"><p class="small muted">${canVote?'Pilih satu orang. Suara terbanyak dikeluarkan. Kalau seri, ada pembelaan terakhir lalu voting ulang.':'Kamu tidak ikut memilih kali ini. Lihat hasilnya.'}</p>
-    <div class="poll" id="poll"></div><div class="vlog" id="vlog" aria-live="polite"></div></div>
-  <div class="bottom">${canVote?'<button class="ghost" id="abstain">Tidak memilih</button><button class="primary" id="go" disabled>Pilih dulu</button>':'<button class="primary" id="go">Buka suara</button>'}</div>`);
+  <div class="top"><div class="grow"><h2>${revote?'Voting ulang':'Voting pertemuan '+G.day}</h2><span class="sub">${revote?'Hanya antara yang seri':'Siapa yang dikeluarkan dari grup?'}</span></div>${MENU_BTN}</div>
+  <div class="scroll"><div class="vlast" id="vlast" hidden></div>
+    <div class="poll" id="poll"></div>${canVote?'<button class="linkish" id="abstain">Tidak memilih</button>':''}<div class="vlog" id="vlog" aria-live="polite"></div></div>
+  <div class="bottom">${canVote?'<button class="primary" id="go" disabled>Pilih satu orang</button>':'<button class="primary" id="go">Buka suara</button>'}</div>`);
+  if(canVote)coach('vote','Pilih yang paling kamu curigai. Suara terbanyak keluar dari grup.');
   draw();
   app.onclick=e=>{
     if(screen!=='vote')return;
     const b=e.target.closest('.opt[data-id]');
-    if(b&&!b.disabled){sel=+b.dataset.id;sfx.pop();draw();const g=document.getElementById('go');g.disabled=false;g.textContent='Kunci suara';return;}
+    if(b&&!b.disabled){sel=+b.dataset.id;sfx.pop();draw();const g=document.getElementById('go');g.disabled=false;g.textContent='Kunci suara: '+pl(sel).name;return;}
     const id=e.target.closest('button')&&e.target.closest('button').id;
     if(id!=='go'&&id!=='abstain')return;
     if(id==='go'&&canVote&&sel==null)return;
     app.onclick=null;
     if(canVote&&id==='go'){votes.push([me.id,sel]);G.humanStats.votes++;if(isBandar(sel))G.humanStats.votedBandar++;}
+    const ab=document.getElementById('abstain');if(ab)ab.remove();
     app.querySelector('.bottom').innerHTML='<button class="ghost" id="skipVotes">Tampilkan semua</button>';
     // suara dibuka satu per satu, dengan komentar
     const order=shuffle(votes);let i=0;const tok=G.token;
@@ -1937,7 +2061,9 @@ function startVote(only,revote){
       (shown.get(t)||shown.set(t,[]).get(t)).push(v);
       draw();sfx.pop();
       const voter=pl(v),comment=voter.human?'':' "'+compose(voter,'voteComment',{})+'"';
-      document.getElementById('vlog').insertAdjacentHTML('beforeend',`<div class="vline">${av(voter,22)}<span><b>${esc(voter.name)}</b> memilih <b>${esc(pl(t).name)}</b>${esc(comment)}</span></div>`);
+      const line=`${av(voter,22)}<span><b>${esc(voter.name)}</b> memilih <b>${esc(pl(t).name)}</b>${esc(comment)}</span>`;
+      const vl=document.getElementById('vlast');vl.innerHTML=line;vl.hidden=false;
+      document.getElementById('vlog').insertAdjacentHTML('beforeend',`<div class="vline">${line}</div>`);
       timer=setTimeout(step,{santai:1100,normal:700,cepat:250}[chatSpeed]);
     };
     let timer=null;
@@ -2062,7 +2188,8 @@ function endScreen(){
       ${r1>r0?`<div class="result good">Naik pangkat jadi <b>${esc(RANKS[r1][1])}</b>!</div>`:''}
       ${newAch.map(a=>`<div class="result good">Prestasi baru: <b>${esc(a)}</b></div>`).join('')}
       <div class="reward"><div><b>+${xp}</b><span class="small">XP</span></div><div><b class="kue">+${kue}</b><span class="small">kue</span></div>${G.daily?`<div><b>${P.daily.streak||0}</b><span class="small">hari berturut</span></div>`:`<div><b>${P.kue}</b><span class="small">total kue</span></div>`}</div>
-      <div class="card kocok" id="kocok"><h3>Kocokan arisan</h3>${kocokSponsorHTML()}<p class="small muted">Siapa yang dapat arisan hari ini? Peluangmu ${Math.round(kocokChance(G.n)*100)}%.</p><div class="slot" id="slot">?</div><button class="primary" id="kocokBtn">Kocok!</button></div>
+      <div class="card kocok" id="kocok"><h3>Kocokan arisan</h3>${kocokSponsorHTML()}<p class="small muted">Siapa yang dapat arisan hari ini? Peluangmu ${Math.round(kocokChance(G.n)*100)}%.</p><div class="slot" id="slot">?</div><button class="primary" id="kocokBtn">Kocok!</button>
+      <details class="small" style="width:100%"><summary>Bagaimana peluangnya dihitung?</summary><p>Peluangmu sama dengan 1 dibagi jumlah pemain, ditambah ${Math.round(KOCOK_BASE_BONUS*100)}% untuk setiap kocokan yang belum kamu menangkan, maksimal ${Math.round(KOCOK_MAX*100)}%. Hadiahnya ${KOCOK_PRIZE} kue. Kue hanya didapat dari bermain dan tidak bisa dibeli.</p></details></div>
       <div class="card"><h3>Peran semua orang</h3><div class="rolelist">${roleRows}</div></div>
       <p class="small muted">${next?`${next[0]-P.xp} XP lagi menuju ${esc(next[1])}.`:'Kamu sudah di pangkat tertinggi.'}</p>`;
     const grid=G.votes.map(v=>v.kicked==null?'⬜':isBandar(v.kicked)?'🟩':'🟥').join('');
@@ -2070,8 +2197,8 @@ function endScreen(){
   }
   render(`
   <div class="top"><div class="grow"><h2>Arisan selesai</h2><span class="sub">${G.daily?'Arisan Harian #'+dailyNo():pass?'Main bareng':'Lawan bot'}</span></div></div>
-  <div class="scroll">${html}<div class="share" id="shareTxt">${esc(share)}</div></div>
-  <div class="bottom"><button class="primary" id="again">Main lagi</button><button id="shareBtn">Bagikan</button><button class="ghost" id="home">Beranda</button></div>`);
+  <div class="scroll">${html}</div>
+  <div class="bottom stack"><button class="primary" id="again">Main lagi</button><button id="shareBtn">Bagikan hasil</button><button class="ghost" id="home">Beranda</button></div>`);
   on('#home','click',homeScreen);
   on('#again','click',()=>pass?passSetup():G.daily?startBotGame({n:6,daily:true}):startBotGame({n:G.n}));
   on('#shareBtn','click',async()=>{
@@ -2079,7 +2206,7 @@ function endScreen(){
       const C=window.Capacitor;
       if(navigator.share){await navigator.share({text:share});return;}
       await navigator.clipboard.writeText(share);toast('Hasil disalin. Tempel di grup WA-mu!');
-    }catch(e){const r=document.createRange();r.selectNodeContents(document.getElementById('shareTxt'));getSelection().removeAllRanges();getSelection().addRange(r);}
+    }catch(e){openSheet(`<h3>Salin hasilmu</h3><p class="share" style="user-select:all">${esc(share)}</p><button class="primary">Tutup</button>`,()=>closeSheet());}
   });
   on('#kocokBtn','click',e=>{
     e.target.disabled=true;sfx.shake();
@@ -2106,13 +2233,13 @@ function kocokSponsorHTML(){
 /* ---------- mode oper HP ---------- */
 function passSetup(){
   screen='passSetup';
-  let names=store.get('passNames',['Ani','Budi','Cici','Dewi','Eka','Fani'].slice(0,5));
+  let names=store.get('passNames',['','','','','']);
   const draw=()=>{render(`
   <div class="top"><button class="ghost small" id="back">Kembali</button><div class="grow"><h2>Main bareng</h2><span class="sub">Satu HP dioper bergantian</span></div></div>
   <div class="scroll">
     <p class="muted">Duduk melingkar. HP dioper saat lihat peran, aksi malam, dan voting. Diskusinya ngobrol langsung.</p>
     <div class="card"><h3>Pemain (${names.length})</h3>
-      ${names.map((n,i)=>`<div class="row">${av({...BOTS[i%8],alive:true},34)}<input type="text" data-i="${i}" value="${esc(n)}" maxlength="12" aria-label="Nama pemain ${i+1}">${names.length>4?`<button class="small ghost" data-del="${i}" aria-label="Hapus">✕</button>`:''}</div>`).join('')}
+      ${names.map((n,i)=>`<div class="row">${av({...BOTS[i%8],alive:true},34)}<input type="text" data-i="${i}" value="${esc(n)}" maxlength="12" placeholder="Pemain ${i+1}" aria-label="Nama pemain ${i+1}">${names.length>4?`<button class="small ghost" data-del="${i}" aria-label="Hapus">✕</button>`:''}</div>`).join('')}
       ${names.length<8?'<button class="small" id="add">+ Tambah pemain</button>':''}
       <p class="small muted">Peran: ${roleSummary(names.length)}.</p>
     </div>
@@ -2125,7 +2252,7 @@ function passSetup(){
     if(screen!=='passSetup')return;
     const b=e.target.closest('button');if(!b)return;
     if(b.dataset.del!=null){names.splice(+b.dataset.del,1);draw();return;}
-    if(b.id==='add'){names.push('Pemain '+(names.length+1));draw();return;}
+    if(b.id==='add'){names.push('');draw();return;}
     if(b.id==='back'){app.onclick=null;homeScreen();return;}
     if(b.id==='go'){
       names=names.map((n,i)=>(n||'').replace(/[<>]/g,'').trim().slice(0,12)||'Pemain '+(i+1));
@@ -2295,9 +2422,10 @@ function achScreen(){
   try{C.Plugins.StatusBar&&C.Plugins.StatusBar.setStyle({style:'DARK'});C.Plugins.StatusBar&&C.Plugins.StatusBar.setBackgroundColor({color:'#350c19'});}catch(e){}
   const App=C.Plugins.App;if(!App)return;
   App.addListener('backButton',()=>{
+    if(document.getElementById('sheet'))return closeSheet();
     if(screen==='home')return App.exitApp();
     if(['lemari','ach','botSetup','passSetup'].includes(screen))return homeScreen();
-    toast('Selesaikan permainannya dulu, atau tekan Beranda di akhir permainan.');
+    openGameMenu();
   });
 })();
 
