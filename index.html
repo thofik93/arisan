@@ -1073,6 +1073,7 @@ function dayScreen(){
     <div class="kas"><span>Kas arisan</span><span class="v">${jt(G.kas)}</span></div>
     <div class="kasbar"><i style="width:${G.kas/KAS_START*100}%"></i></div>
     <div class="row between"><div class="members">${alive().map(p=>av(p,30,true)).join('')}</div><span class="pill heat" id="heat">${heatLabel()}</span></div>
+    <div class="row between"><span class="small muted" id="holdNote" hidden>Ibu-ibu menunggu kamu selesai mengetik…</span><button class="small ghost" id="speedBtn" style="margin-left:auto">Kecepatan: ${SPEEDS[chatSpeed].label}</button></div>
   </div>
   <div class="feed" id="feed" aria-live="polite">
     <div class="sys">Pagi, Ibu-ibu! ☀️ Pertemuan ke-${G.day}.</div>
@@ -1084,6 +1085,7 @@ function dayScreen(){
   bindComposer();
   on('#voteBtn','click',()=>startVote());
   on('#fastBtn','click',()=>{chat.fast=true;});
+  on('#speedBtn','click',e=>{const k=Object.keys(SPEEDS);chatSpeed=k[(k.indexOf(chatSpeed)+1)%k.length];store.set('chatSpeed',chatSpeed);e.target.textContent='Kecepatan: '+SPEEDS[chatSpeed].label;});
   scrollFeed();
   setTimeout(()=>tick(tok),900);
 }
@@ -1103,6 +1105,19 @@ function msgHTML(m,id){
   const cls=[me?'me':'',claim?'claim':'',m.type==='cry'?'cry':'',m.type==='salah'?'salah':''].join(' ');
   return `<div class="msg ${cls}" ${id?`id="${id}"`:''}>${av(p,30)}<div class="bubble"><span class="who" style="color:${p.hijab}">${esc(p.name)}${title}</span><span class="txt">${esc(m.text)}</span></div></div>`;
 }
+/* Kecepatan obrolan: lama mengetik mengikuti panjang pesan, ditambah jeda antar-pesan untuk berpikir */
+const SPEEDS={
+  santai:{label:'Santai',base:1600,perChar:40,maxType:6000,gapMin:2200,gapMax:4200},
+  normal:{label:'Normal',base:900,perChar:22,maxType:3500,gapMin:900,gapMax:1800},
+  cepat: {label:'Cepat', base:400,perChar:8, maxType:1500,gapMin:300,gapMax:700}
+};
+let chatSpeed=SPEEDS[store.get('chatSpeed','santai')]?store.get('chatSpeed','santai'):'santai';
+const typingTime=text=>{const sp=SPEEDS[chatSpeed];return Math.min(sp.maxType,sp.base+sp.perChar*String(text||'').length);};
+const gapTime=()=>{const sp=SPEEDS[chatSpeed];return sp.gapMin+rnd()*(sp.gapMax-sp.gapMin);};
+/* Pemain sedang menyusun pesan: kotak ketik masih berisi tulisan, atau baru saja diketik.
+   Fokus saja tidak cukup, karena setelah Kirim keyboard HP biasanya tetap terbuka. */
+let lastKeyAt=0;
+function playerBusy(){const i=document.getElementById('msgIn');if(!i||i.disabled)return false;return i.value.trim().length>0||(document.activeElement===i&&Date.now()-lastKeyAt<4000);}
 const later=(tok,ms,fn)=>setTimeout(()=>{if(G&&G.token===tok&&screen==='day')fn();},chat.fast?Math.min(ms,300):ms);
 function tick(tok){
   if(!G||G.token!==tok||screen!=='day')return;
@@ -1110,18 +1125,22 @@ function tick(tok){
     if(!chat.done){chat.done=true;addToFeed(`<div class="sys">Obrolan mulai sepi. Tekan <b>Mulai voting</b> kalau sudah siap.</div>`);}
     return;
   }
+  // tunggu dulu kalau pemain sedang mengetik, kecuali sedang dipercepat
+  const hold=document.getElementById('holdNote');
+  if(!chat.fast&&playerBusy()){if(hold)hold.hidden=false;setTimeout(()=>tick(tok),700);return;}
+  if(hold)hold.hidden=true;
   const slot=chat.queue[chat.idx++];
   const m=botSpeak(slot);
   if(!m){tick(tok);return;}
   const who=pl(m.from);
+  m.text=m.text||textFor(m);
   addToFeed(`<div class="typing">${esc(who.name)} sedang mengetik…</div>`);
-  later(tok,900+rnd()*900,()=>{
+  later(tok,typingTime(m.text),()=>{
     if(!who.alive){tick(tok);return;}
-    m.text=m.text||textFor(m);
     applyMsg(m);addHeat(m);
     const mid='m'+(G.msgCounter=(G.msgCounter||0)+1);
     addToFeed(msgHTML(m,mid));sfx.pop();
-    let next=500+rnd()*600;
+    let next=gapTime();
     if(m.type==='salah'){
       // pesan salah kirim dihapus lagi, tapi sudah sempat terbaca
       later(tok,2600,()=>{const el=document.querySelector('#'+mid+' .txt');if(el){el.textContent='🚫 Pesan ini telah dihapus';el.parentElement.classList.add('deleted');}
@@ -1175,6 +1194,7 @@ function bindComposer(){
     if(q.noT){input.value=q.tpl;tg.hidden=true;input.focus();}else tg.hidden=false;
   };
   tg.onclick=e=>{const b=e.target.closest('[data-t]');if(!b||!chat.act)return;input.value=chat.act.tpl.replace('{t}',pl(+b.dataset.t).name);tg.hidden=true;acts.querySelectorAll('button').forEach(x=>x.classList.remove('on'));input.focus();};
+  input.addEventListener('input',()=>{lastKeyAt=Date.now();});
   document.getElementById('msgForm').onsubmit=e=>{e.preventDefault();sendHuman(input.value);};
 }
 function sendHuman(raw){
