@@ -9,4 +9,4 @@ crons = ["0 20 * * *"]
 [[d1_databases]]
 binding = "DB"
 database_name = "arisan"
-database_id = "ISI_SETELAH_wrangler_d1_create"
+database_id = "d74206b4-d03c-4b94-acc5-df9e18a9c3dd"

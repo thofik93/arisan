@@ -426,7 +426,7 @@ async function loadSponsors(){
    Isinya hanya data: slang baru, model kata (naive Bayes) untuk pesan yang tidak tertangkap aturan,
    dan "gelagat" pemain manusia yang bandar. Semua dibatasi supaya file yang rusak tidak bisa merusak game. */
 const BRAIN_URL='https://thofik93.github.io/arisan/brain.json';
-const LEARN_API='';// alamat server Cloudflare, diisi setelah server aktif
+const LEARN_API='https://arisan-brain.thofik93.workers.dev';// server Cloudflare (server/)
 const REC_V=1;
 const NB_CLASSES=['accuse','defend','deny','question','ask_alibi','ask_why','ask_role','greet','laugh','chat'];
 const TELL_KEYS=['acc','acc2','def','deny','quiet','claim','ask'];
