@@ -97,6 +97,10 @@ Untuk 4–5 pemain (hanya di mode oper HP), simulasi bot masih menguntungkan war
 
 Sengaja tidak ada: pembelian dengan uang sungguhan, loot box, sistem energi, atau notifikasi yang memaksa. Kue hanya bisa didapat dari bermain.
 
+## Sponsor
+
+Pemasukan direncanakan dari sponsor langsung, bukan jaringan iklan. Brand bisa tampil di Lemari (kerudung edisi brand), kartu kocokan, Arisan Harian, dan kue arisan di grup chat, selalu dengan label "Sponsor" dan tidak pernah di petunjuk tentang bandar. Sponsor diatur lewat `sponsors.json` tanpa rilis ulang aplikasi. Cara memasangnya ada di [SPONSORS.md](SPONSORS.md), dan pratinjau semua slot bisa dilihat di https://thofik93.github.io/arisan/#sponsordemo.
+
 ## Teknis
 
 - `index.html`: seluruh game dalam satu file (HTML, CSS, JS) tanpa build dan tanpa dependensi. Progres disimpan di `localStorage`.

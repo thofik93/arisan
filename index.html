@@ -189,6 +189,11 @@ details[open] summary{margin-bottom:8px}
 .lastwords .bubble{background:var(--paper);color:var(--ink);border-radius:14px 14px 14px 4px;padding:9px 12px;font-weight:700}
 .suspense{font-family:var(--display);font-weight:800;font-size:1.6rem;text-align:center;color:var(--emas)}
 @media (prefers-reduced-motion:no-preference){.suspense{animation:pulse .5s ease-in-out infinite alternate}@keyframes pulse{from{opacity:.4}to{opacity:1}}}
+.sp-chip{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.03em;padding:1px 7px;border-radius:999px;background:var(--emas);color:var(--ink);vertical-align:1px;white-space:nowrap}
+.sp-line{display:block;margin-top:4px;font-size:12px;font-weight:700;color:var(--muted)}
+.sp-box{display:flex;flex-direction:column;gap:4px;align-items:center;background:var(--maroon-deep);border:1px dashed var(--emas);border-radius:12px;padding:8px 10px;width:100%}
+.sp-link{font-size:13px;font-weight:800;color:var(--emas);white-space:nowrap}
+.sp-under{display:block;margin-top:4px}
 .sys.narr{background:transparent;color:var(--muted);font-style:italic;font-weight:600}
 .msg .quote{display:block;font-size:12px;color:var(--ink-muted);border-left:3px solid var(--lapis);padding:1px 0 1px 7px;margin:2px 0 4px;background:rgba(0,0,0,.04);border-radius:3px}
 .reacts{display:block;margin-top:4px;font-size:12px;font-weight:700;color:var(--ink-muted)}
@@ -342,6 +347,49 @@ function defaultProfile(){return{name:'',hijab:'merah',frame:'none',title:'none'
 let P=Object.assign(defaultProfile(),store.get('profile',{}));
 const saveP=()=>store.set('profile',P);
 const cos=(slot,id)=>COSMETICS.find(c=>c.slot===slot&&c.id===id);
+
+/* ================= sponsor =================
+   Sponsor hanya muncul di momen positif (kerudung di Lemari, hadiah kocokan, Arisan Harian,
+   kue arisan), tidak pernah di petunjuk tentang bandar. Setiap kemunculan diberi label "Sponsor".
+   Daftar dibaca dari sponsors.json, jadi bisa diganti tanpa merilis ulang aplikasi. */
+const SPONSOR_URL='https://thofik93.github.io/arisan/sponsors.json';
+const DEMO_SPONSORS=[
+  {id:'demo-hijab',brand:'Toko Hijab Melati (contoh)',link:'https://example.com',
+   slots:{hijab:{name:'Kerudung Melati Lavender',color:'#9b7fd1'},harian:{text:'Arisan Harian hari ini dipersembahkan oleh Toko Hijab Melati (contoh).'}}},
+  {id:'demo-kue',brand:'Katering Bu Sari (contoh)',link:'https://example.com',
+   slots:{kue:{item:'risol mayo'},kocokan:{text:'Kocokan hari ini dipersembahkan oleh Katering Bu Sari (contoh).',prize:'Diskon 15% untuk pesanan pertama'}}}
+];
+let SPONSORS=[];
+const sponsorDemo=()=>location.hash==='#sponsordemo';
+function activeSponsors(list){
+  const today=todayKey();
+  return (Array.isArray(list)?list:[]).filter(x=>x&&typeof x.brand==='string'&&x.slots&&typeof x.slots==='object'&&(!x.start||x.start<=today)&&(!x.end||x.end>=today));
+}
+/* Pilihan sponsor memakai Math.random, bukan RNG permainan, supaya Arisan Harian tetap sama untuk semua orang */
+function sponsorFor(slot){const xs=SPONSORS.filter(x=>x.slots[slot]);return xs.length?xs[Math.floor(Math.random()*xs.length)]:null;}
+const safeLink=u=>/^https:\/\/[^\s"'<>]+$/.test(u||'')?u:null;
+const sponsorChip=brand=>`<span class="sp-chip">Sponsor · ${esc(String(brand).slice(0,40))}</span>`;
+function sponsorLink(x){const l=safeLink(x&&x.link);return l?`<a class="sp-link" href="${esc(l)}" target="_blank" rel="noopener sponsored">Lihat promo</a>`:'';}
+function applySponsorCosmetics(){
+  for(let i=COSMETICS.length-1;i>=0;i--)if(COSMETICS[i].sponsor)COSMETICS.splice(i,1);
+  for(const x of SPONSORS){
+    const h=x.slots.hijab;if(!h||!/^#[0-9a-f]{6}$/i.test(h.color||''))continue;
+    COSMETICS.push({slot:'hijab',id:'sp-'+String(x.id||x.brand).replace(/[^a-z0-9-]/gi,'').slice(0,30),name:String(h.name||'Kerudung sponsor').slice(0,40),
+      price:0,color:h.color,pattern:h.pattern==='batik',sponsor:x.brand,link:safeLink(x.link)});
+  }
+}
+async function loadSponsors(){
+  if(sponsorDemo()){SPONSORS=DEMO_SPONSORS;applySponsorCosmetics();return;}
+  SPONSORS=activeSponsors(store.get('sponsors',[]));applySponsorCosmetics();
+  try{
+    const C=window.Capacitor,native=!!(C&&C.isNativePlatform&&C.isNativePlatform());
+    const r=await fetch(native?SPONSOR_URL:'sponsors.json',{cache:'no-cache'});
+    if(!r.ok)return;
+    const j=await r.json(),list=Array.isArray(j.sponsors)?j.sponsors.slice(0,20):[];
+    store.set('sponsors',list);SPONSORS=activeSponsors(list);applySponsorCosmetics();
+    if(screen==='home')homeScreen();
+  }catch(e){/* offline: pakai daftar terakhir */}
+}
 
 /* ================= avatar ================= */
 function avatarSVG(p,size){
@@ -1041,6 +1089,8 @@ function planSpeakers(){
   const [ba,bb]=G.besties||[];
   if(ok(ba)&&ok(bb)&&!G.betrayed&&G.day>=2){const [hi,lo]=[ba,bb].sort((x,y)=>pubSusp(y)-pubSusp(x));if(pubSusp(hi)>.4)drama.push([{drama:'khianat',a:lo,b:hi,step:0},{drama:'khianat',a:lo,b:hi,step:1}]);}
   // kejutan: dua sampai tiga per hari
+  const kueSp=G.day===1&&sponsorFor('kue');
+  if(kueSp){const giver=bots.find(b=>b.role!=='bandar');if(giver)drama.push([{drama:'kue',who:giver.id,brand:kueSp.brand,item:String(kueSp.slots.kue.item||'kue').slice(0,40)}]);}
   const cand=[];
   if(bots.length)cand.push([{drama:'salah',who:pickR(bots).id}],[{drama:'voice',who:pickR(bots).id}],[{drama:'cctv'}],[{drama:'paket'}]);
   const victim=bots.filter(b=>b.framed+b.accusedCount>=2).sort((a,b)=>(b.framed+b.accusedCount)-(a.framed+a.accusedCount))[0];
@@ -1173,6 +1223,7 @@ function dramaSpeak(s){
     return sysEvent(`<div class="sys news">📦 Kurir COD berhenti di depan rumah <b>${esc(t.name)}</b>, bawa ${pickR(PAKET)}. Bayarnya tunai, lho…</div>`,
       ()=>{for(const v of alive())if(!v.human&&v.role!=='bandar')mulBelief(v,t.id,TUNE.paketLR);},'shot');
   }
+  if(s.drama==='kue'){const p=pl(s.who);if(!p.alive)return null;return{from:p.id,type:'flavor',sponsor:s.brand,noFollow:true,text:`Eh, aku bawa ${s.item} dari ${s.brand} ya buat pertemuan nanti 😋 Siapa mau?`};}
   if(s.drama==='curhat'){const p=pl(s.who);if(!p.alive||p.cried)return null;p.cried=true;return{from:p.id,type:'cry',core:'cry'};}
   if(s.drama==='pengakuan'){const p=pl(s.who);if(!p.alive||p.confessed)return null;p.confessed=true;return{from:p.id,type:'pengakuan',core:'pengakuan'};}
   if(s.drama==='rapat'){const p=pl(s.who);if(!p.alive)return null;return{from:p.id,type:'rapat',core:'rapat'};}
@@ -1468,6 +1519,8 @@ function homeScreen(){
   const pct=next?Math.min(100,(P.xp-RANKS[ri_][0])/(next[0]-RANKS[ri_][0])*100):100;
   const dk=todayKey(),dailyDone=P.daily.done[dk];
   const me={...humanLook(),alive:true};
+  const hs=sponsorFor('harian');
+  const hText=hs?String(hs.slots.harian.text||('Dipersembahkan oleh '+hs.brand)).slice(0,120):'';
   render(`
   <div class="scroll">
     <div class="row between">
@@ -1485,7 +1538,7 @@ function homeScreen(){
     </div>
     <div class="menu">
       <button class="primary" id="playBot"><b>Main sama ibu-ibu</b><span>Kamu dan 5–7 ibu-ibu bot. Sekitar 5 menit.</span></button>
-      <button id="playDaily"><b>Arisan Harian #${dailyNo()} ${dailyDone?'✓':''}</b><span>${dailyDone?`Sudah dimainkan hari ini (${dailyDone.win?'menang':'kalah'}). Main lagi untuk latihan.`:'Soal yang sama untuk semua orang hari ini. Bandingkan hasilmu.'}</span></button>
+      <button id="playDaily"><b>Arisan Harian #${dailyNo()} ${dailyDone?'✓':''}</b><span>${dailyDone?`Sudah dimainkan hari ini (${dailyDone.win?'menang':'kalah'}). Main lagi untuk latihan.`:'Soal yang sama untuk semua orang hari ini. Bandingkan hasilmu.'}</span>${hs?`<span class="sp-line">${esc(hText)} ${sponsorChip(hs.brand)}</span>`:''}</button>
       <button id="playPass"><b>Main bareng, oper HP</b><span>4–8 orang di satu HP. Cocok buat arisan beneran.</span></button>
     </div>
     <div class="grid2">
@@ -1704,7 +1757,7 @@ function msgHTML(m,id){
   const title=p.title?` <small>· ${esc(p.title)}</small>`:'';
   const cls=[me?'me':'',claim?'claim':'',m.type==='cry'?'cry':'',m.type==='salah'?'salah':''].join(' ');
   const q=m.replyTo&&m.replyTo.from!=null&&m.replyTo.text?`<span class="quote">↪ ${esc(pl(m.replyTo.from).name)}: ${esc(m.replyTo.text.length>48?m.replyTo.text.slice(0,48)+'…':m.replyTo.text)}</span>`:'';
-  return `<div class="msg ${cls}" ${id?`id="${id}"`:''}>${av(p,30)}<div class="bubble"><span class="who" style="color:${p.hijab}">${esc(p.name)}${title}</span>${q}<span class="txt">${esc(m.text)}</span></div></div>`;
+  return `<div class="msg ${cls}" ${id?`id="${id}"`:''}>${av(p,30)}<div class="bubble"><span class="who" style="color:${p.hijab}">${esc(p.name)}${title}</span>${q}<span class="txt">${esc(m.text)}</span>${m.sponsor?`<span class="sp-under">${sponsorChip(m.sponsor)}</span>`:''}</div></div>`;
 }
 /* Kecepatan obrolan: lama mengetik mengikuti panjang pesan, ditambah jeda antar-pesan untuk berpikir */
 const SPEEDS={
@@ -2008,7 +2061,7 @@ function endScreen(){
       ${r1>r0?`<div class="result good">Naik pangkat jadi <b>${esc(RANKS[r1][1])}</b>!</div>`:''}
       ${newAch.map(a=>`<div class="result good">Prestasi baru: <b>${esc(a)}</b></div>`).join('')}
       <div class="reward"><div><b>+${xp}</b><span class="small">XP</span></div><div><b class="kue">+${kue}</b><span class="small">kue</span></div>${G.daily?`<div><b>${P.daily.streak||0}</b><span class="small">hari berturut</span></div>`:`<div><b>${P.kue}</b><span class="small">total kue</span></div>`}</div>
-      <div class="card kocok" id="kocok"><h3>Kocokan arisan</h3><p class="small muted">Siapa yang dapat arisan hari ini? Peluangmu ${Math.round(kocokChance(G.n)*100)}%.</p><div class="slot" id="slot">?</div><button class="primary" id="kocokBtn">Kocok!</button></div>
+      <div class="card kocok" id="kocok"><h3>Kocokan arisan</h3>${kocokSponsorHTML()}<p class="small muted">Siapa yang dapat arisan hari ini? Peluangmu ${Math.round(kocokChance(G.n)*100)}%.</p><div class="slot" id="slot">?</div><button class="primary" id="kocokBtn">Kocok!</button></div>
       <div class="card"><h3>Peran semua orang</h3><div class="rolelist">${roleRows}</div></div>
       <p class="small muted">${next?`${next[0]-P.xp} XP lagi menuju ${esc(next[1])}.`:'Kamu sudah di pangkat tertinggi.'}</p>`;
     const grid=G.votes.map(v=>v.kicked==null?'⬜':isBandar(v.kicked)?'🟩':'🟥').join('');
@@ -2043,6 +2096,12 @@ function endScreen(){
   });
 }
 
+function kocokSponsorHTML(){
+  const x=sponsorFor('kocokan');if(!x)return '';
+  const k=x.slots.kocokan;
+  return `<div class="sp-box"><p class="small">${esc(String(k.text||('Kocokan dipersembahkan oleh '+x.brand)).slice(0,120))} ${sponsorChip(x.brand)}</p>
+    ${k.prize?`<p class="small"><b>Promo:</b> ${esc(String(k.prize).slice(0,80))}</p>`:''}${sponsorLink(x)}</div>`;
+}
 /* ---------- mode oper HP ---------- */
 function passSetup(){
   screen='passSetup';
@@ -2200,9 +2259,10 @@ function lemari(tab){
     <div class="chips">${tabs.map(([k,l])=>`<button data-tab="${k}" class="${k===tab?'on':''}">${l}</button>`).join('')}</div>
     ${items.map(c=>{const key=c.slot+':'+c.id,own=P.owned.includes(key),onNow=P[c.slot]===c.id;
       const prev=c.color?`<span class="swatch" style="background:${c.color}"></span>`:`<span class="swatch" style="background:var(--maroon-deep)"></span>`;
-      const btn=c.slot==='sticker'?(own?'<span class="small" style="color:var(--pandan);font-weight:800">Dimiliki</span>':`<button class="small" data-buy="${key}" ${P.kue<c.price?'disabled':''}>${c.price} kue</button>`)
-        :onNow?'<span class="small" style="color:var(--pandan);font-weight:800">Dipakai</span>':own?`<button class="small" data-wear="${key}">Pakai</button>`:`<button class="small" data-buy="${key}" ${P.kue<c.price?'disabled':''}>${c.price} kue</button>`;
-      return `<div class="item">${prev}<span><b>${esc(c.name)}</b>${c.text&&c.slot==='sticker'?`<br><span class="small muted">${esc(c.text)}</span>`:''}</span>${btn}</div>`;}).join('')}
+      const priceTxt=c.sponsor&&!c.price?'Ambil gratis':`${c.price} kue`;
+      const btn=c.slot==='sticker'?(own?'<span class="small" style="color:var(--pandan);font-weight:800">Dimiliki</span>':`<button class="small" data-buy="${key}" ${P.kue<c.price?'disabled':''}>${priceTxt}</button>`)
+        :onNow?'<span class="small" style="color:var(--pandan);font-weight:800">Dipakai</span>':own?`<button class="small" data-wear="${key}">Pakai</button>`:`<button class="small" data-buy="${key}" ${P.kue<c.price?'disabled':''}>${priceTxt}</button>`;
+      return `<div class="item">${prev}<span><b>${esc(c.name)}</b>${c.text&&c.slot==='sticker'?`<br><span class="small muted">${esc(c.text)}</span>`:''}${c.sponsor?`<br>${sponsorChip(c.sponsor)} ${sponsorLink(c)}`:''}</span>${btn}</div>`;}).join('')}
     <p class="small muted">Kue didapat dari bermain dan menang kocokan. Semua barang hanya tampilan dan tidak mengubah peluang menang.</p>
   </div>`);
   app.onclick=e=>{
@@ -2240,7 +2300,9 @@ function achScreen(){
   });
 })();
 
+loadSponsors();
 homeScreen();
+addEventListener('hashchange',()=>{loadSponsors().then(()=>{if(screen==='home')homeScreen();});});
 })();
 </script>
 </body>
