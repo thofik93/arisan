@@ -28,7 +28,7 @@ export function sanitize(g) {
     })),
     human: arr(g.human, 60).map(h => ({
       d: int(h && h.d, 1, 9), n: str(h && h.n, 200, /^[\p{L}\p{N}\s<>?,.!;_-]*$/u), l: str(h && h.l, 20, LABELS),
-      t: pid(h && h.t), a: pid(h && h.a), x: str(h && h.x, 20, LABELS),
+      t: pid(h && h.t), a: pid(h && h.a), x: str(h && h.x, 20, LABELS), xt: pid(h && h.xt),
       g: typeof (h && h.g) === 'number' && h.g >= 0 && h.g <= 1 ? h.g : null
     })).filter(h => h.n != null && h.l != null),
     votes: arr(g.votes, 12).map(v => ({

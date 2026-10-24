@@ -1,36 +1,62 @@
-/* Uji pemahaman pesan bebas. Wajib lolos sebelum otak hasil latihan dipakai.
-   Pakai: node tests/nlu.mjs   (butuh paket playwright dan browser chromium) */
+/* Uji pemahaman pesan bebas.
+   node tests/nlu.mjs              korpus pengembangan (nlu-corpus.json), wajib 100%
+   node tests/nlu.mjs --holdout    set uji tertutup (nlu-holdout.mjs), dilaporkan sebagai skor
+   node tests/nlu.mjs --all        keduanya
+   Gerbang: korpus pengembangan harus lolos semua, dan skor set tertutup tidak boleh turun dari tests/holdout-baseline.json.
+   Butuh paket playwright dan browser chromium. */
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PW_PATH || 'playwright');
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
-const corpus = JSON.parse(fs.readFileSync(path.join(root, 'tests/nlu-corpus.json'), 'utf8'));
+const args = new Set(process.argv.slice(2));
+const verbose = args.has('-v');
 const brain = JSON.parse(fs.readFileSync(path.join(root, 'brain.json'), 'utf8'));
+
+const sets = [];
+if (!args.has('--holdout') || args.has('--all')) sets.push({ name: 'pengembangan', gate: 'all', cases: JSON.parse(fs.readFileSync(path.join(root, 'tests/nlu-corpus.json'), 'utf8')) });
+if (args.has('--holdout') || args.has('--all')) sets.push({ name: 'tertutup', gate: 'baseline', cases: (await import(path.join(root, 'tests/nlu-holdout.mjs'))).default });
 
 const b = await chromium.launch(); const p = await b.newPage();
 const errs = []; p.on('pageerror', e => errs.push(String(e)));
 await p.goto('file://' + path.join(root, 'index.html'));
-const res = await p.evaluate(({ corpus, brain }) => {
-  const d = ArisanSim.debug, out = [];
-  for (const { text, expect, context } of corpus) {
-    d.newGame({ mode: 'sim', n: 8 });
-    const G = d.G; G.players.push({ ...G.players[0], id: 8, name: 'Bu Tester', human: true, bot: null, alive: true }); G.mode = 'bot';
-    d.setBrain(brain);
-    const byName = n => n === 'ME' ? 8 : G.players.find(x => x.name === n).id;
-    G.msgs = [];
-    for (const [f, t, tg, v] of (context || [])) G.msgs.push({ from: byName(f), type: t, target: tg != null ? byName(tg) : null, value: v });
-    const h = d.parseHuman(text);
-    const nm = h.target != null ? '@' + G.players[h.target].name : '';
-    const got = h.type + (h.type === 'ask' && h.addressee != null ? '@' + G.players[h.addressee].name : nm) + (h.ask ? '/' + h.ask : '');
-    out.push({ text, expect, got });
+
+export async function runCases(page, cases, brainJson) {
+  return page.evaluate(({ cases, brain }) => {
+    const d = ArisanSim.debug, out = [];
+    for (const { text, expect, context } of cases) {
+      d.newGame({ mode: 'sim', n: 8 });
+      const G = d.G; G.players.push({ ...G.players[0], id: 8, name: 'Bu Tester', human: true, bot: null, alive: true }); G.mode = 'bot';
+      d.setBrain(brain);
+      const byName = n => n === 'ME' ? 8 : G.players.find(x => x.name === n).id;
+      G.msgs = [];
+      for (const [f, t, tg, v] of (context || [])) G.msgs.push({ from: byName(f), type: t, target: tg != null ? byName(tg) : null, value: v });
+      const h = d.parseHuman(text);
+      const nm = h.target != null ? '@' + G.players[h.target].name : '';
+      let got = h.type + (h.type === 'ask' && h.addressee != null ? '@' + G.players[h.addressee].name : nm) + (h.ask ? '/' + h.ask : '');
+      if (/:[+-]$/.test(expect) && (h.type === 'report' || h.type === 'claimBend')) got += h.value ? ':+' : ':-';
+      out.push({ text, expect, got, conf: h.conf ?? null });
+    }
+    return out;
+  }, { cases, brain: brainJson });
+}
+
+let fail = false;
+const baselinePath = path.join(root, 'tests/holdout-baseline.json');
+for (const s of sets) {
+  const res = await runCases(p, s.cases, brain);
+  const bad = res.filter(r => r.got !== r.expect);
+  const score = res.length - bad.length;
+  if (s.gate === 'all' || verbose) for (const r of bad) console.log('✗', r.text, '| harap', r.expect, '| dapat', r.got);
+  console.log(`[${s.name}] ${score}/${res.length} benar (${(100 * score / res.length).toFixed(1)}%) dengan otak v${brain.version}`);
+  if (s.gate === 'all' && bad.length) fail = true;
+  if (s.gate === 'baseline') {
+    const base = fs.existsSync(baselinePath) ? JSON.parse(fs.readFileSync(baselinePath, 'utf8')).score : 0;
+    if (score < base) { console.log(`  turun dari baseline ${base}`); fail = true; }
+    if (args.has('--save-baseline')) fs.writeFileSync(baselinePath, JSON.stringify({ score, total: res.length, at: new Date().toISOString().slice(0, 10) }) + '\n');
   }
-  return out;
-}, { corpus, brain });
+}
 await b.close();
-const bad = res.filter(r => r.got !== r.expect);
-for (const r of bad) console.log('✗', r.text, '| harap', r.expect, '| dapat', r.got);
-console.log(`${res.length - bad.length}/${res.length} benar dengan otak v${brain.version}`);
-if (errs.length) console.log('error halaman:', errs);
-process.exit(bad.length || errs.length ? 1 : 0);
+if (errs.length) { console.log('error halaman:', errs); fail = true; }
+process.exit(fail ? 1 : 0);
