@@ -88,14 +88,15 @@ input[type=text]{font:inherit;font-size:17px;color:var(--ink);background:var(--p
 /* avatar */
 .av{flex:none;display:inline-block;position:relative;line-height:0}
 .av svg{display:block}
-.av .sandal{position:absolute;right:-2px;bottom:-2px;width:14px;height:14px;border-radius:50%;border:2px solid var(--maroon-deep)}
+.av .sandal{position:absolute;right:-5px;bottom:-4px;line-height:0;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.7))}
+.sandal-ic{display:inline-block;vertical-align:-4px;line-height:0;margin-right:4px}
 .av.out svg{filter:grayscale(1) opacity(.45)}
 
 /* pilih orang */
 .people{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
 .person{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px;border-radius:14px;background:var(--panel);border:2px solid var(--line);color:var(--fg);font-weight:700;font-size:14px;text-align:center}
 .person.sel{border-color:var(--emas);background:var(--maroon-deep)}
-.person .tag{font-size:11px;color:var(--muted);font-weight:700}
+.person .tag{font-size:11px;color:var(--muted);font-weight:700;white-space:nowrap}
 .person[disabled]{opacity:.4}
 
 /* kartu peran */
@@ -426,8 +427,17 @@ function avatarSVG(p,size){
   if(p.frameColor)parts.push(`<circle cx="24" cy="24" r="22.5" fill="none" stroke="${p.frameColor}" stroke-width="3"/>`);
   return `<svg width="${s}" height="${s}" viewBox="0 0 48 48" aria-hidden="true">${parts.join('')}</svg>`;
 }
+/* Sandal jepit dilihat dari atas: alas, tali V, dan jepitan jempol, dengan garis tepi supaya terlihat di latar gelap */
+function sandalSVG(hex,size){
+  const s=size||16;
+  return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-28 12 12)">`+
+    `<path d="M12 1.6 C16.6 1.6 18.1 5.6 17.6 9.6 C17.1 13.1 15.6 15.1 15.9 18.6 C16.1 21.6 14.3 23 12 23 C9.7 23 7.9 21.6 8.1 18.6 C8.4 15.1 6.9 13.1 6.4 9.6 C5.9 5.6 7.4 1.6 12 1.6 Z" fill="${hex}" stroke="#fff8ee" stroke-width="1.4"/>`+
+    `<path d="M12 3.4 C15.2 3.4 16.2 6.2 15.9 9.3 C15.5 12.3 14.2 14.4 14.4 18 C14.5 20.4 13.3 21.3 12 21.3 C10.7 21.3 9.5 20.4 9.6 18 C9.8 14.4 8.5 12.3 8.1 9.3 C7.8 6.2 8.8 3.4 12 3.4 Z" fill="#000" opacity=".12"/>`+
+    `<path d="M12 6.2 C9.6 7.6 8.1 10 7.5 12.6 M12 6.2 C14.4 7.6 15.9 10 16.5 12.6" stroke="#2b1a1f" stroke-width="2" fill="none" stroke-linecap="round"/>`+
+    `<circle cx="12" cy="6.2" r="1.3" fill="#2b1a1f"/></g></svg>`;
+}
 function av(p,size,showSandal){
-  const sd=showSandal&&p.sandal?`<span class="sandal" style="background:${p.sandalHex}" title="Sandal ${esc(p.sandal)}"></span>`:'';
+  const sd=showSandal&&p.sandal?`<span class="sandal" title="Sandal ${esc(p.sandal)}">${sandalSVG(p.sandalHex,Math.max(15,Math.round((size||40)*.42)))}</span>`:'';
   return `<span class="av ${p.alive===false?'out':''}">${avatarSVG(p,size)}${sd}</span>`;
 }
 function humanLook(){const h=cos('hijab',P.hijab)||COSMETICS[0],f=cos('frame',P.frame);return{hijab:h.color,skin:'#e8b88a',frameColor:f&&f.color,
@@ -1548,8 +1558,8 @@ function roleReveal(){
       <p>${r.desc}</p>
       ${partner.length?`<p><b>Rekanmu:</b> ${partner.map(p=>esc(p.name)).join(', ')}. Jangan sampai saling tuduh.</p>`:''}
     </div>
-    <div class="card"><h3>Anggota grup</h3><p class="small muted">Titik warna di avatar adalah warna sandal. Perhatikan kalau ada kabar soal sandal.</p>
-      <div class="people">${G.players.map(p=>`<div class="person" style="cursor:default">${av(p,44,true)}<span>${esc(p.name)}${p.human?' (kamu)':''}</span><span class="tag">Sandal ${esc(p.sandal)}</span></div>`).join('')}</div></div>
+    <div class="card"><h3>Anggota grup</h3><p class="small muted">Sandal jepit di pojok avatar menunjukkan warna sandal tiap orang. Perhatikan kalau ada kabar soal sandal.</p>
+      <div class="people">${G.players.map(p=>`<div class="person" style="cursor:default">${av(p,44,true)}<span>${esc(p.name)}${p.human?' (kamu)':''}</span><span class="tag"><span class="sandal-ic">${sandalSVG(p.sandalHex,14)}</span>Sandal ${esc(p.sandal)}</span></div>`).join('')}</div></div>
   </div>
   <div class="bottom"><button class="primary" id="go">Mulai malam pertama</button></div>`);
   on('#go','click',nightScreen);
@@ -1618,7 +1628,7 @@ function newsHTML(nw){
   if(nw.type==='kas')return `<div class="sys news">💰 Kas berkurang <b>${rp(nw.take)}</b> semalam. Sisa ${jt(G.kas)}.</div>`;
   if(nw.type==='fitnah')return `<div class="sys news">📢 Kabar beredar: <b>${esc(pl(nw.target).name)}</b> ${esc(nw.text)}.</div>`;
   if(nw.type==='klarifikasi')return `<div class="sys news">🛡️ Ada yang menyebar fitnah tentang <b>${esc(pl(nw.target).name)}</b>, tapi Bu RT sudah mengklarifikasi.</div>`;
-  if(nw.type==='sandal'){const s=SANDAL.find(x=>x[0]===nw.color);return `<div class="sys news">👡 Ada yang lihat orang bersandal <b style="color:${s[1]}">${esc(nw.color)}</b> dekat kotak kas tengah malam.</div>`;}
+  if(nw.type==='sandal'){const s=SANDAL.find(x=>x[0]===nw.color);return `<div class="sys news"><span class="sandal-ic">${sandalSVG(s[1],20)}</span>Ada yang lihat orang bersandal <b style="color:${s[1]}">${esc(nw.color)}</b> dekat kotak kas tengah malam.</div>`;}
   return '';
 }
 function dayScreen(){
@@ -2084,7 +2094,7 @@ function passReveal(p,next){
   const partner=p.role==='bandar'?G.players.filter(q=>q.role==='bandar'&&q.id!==p.id):[];
   render(`<div class="scroll" style="justify-content:center">
     <div class="rolecard ${p.role}"><span class="small" style="font-weight:800">${esc(p.name)}, kamu adalah</span><span class="rname">${r.name}</span><p>${r.desc}</p>
-    ${partner.length?`<p><b>Rekanmu:</b> ${partner.map(q=>esc(q.name)).join(', ')}</p>`:''}<p class="small">Sandalmu warna <b>${esc(p.sandal)}</b>.</p></div></div>
+    ${partner.length?`<p><b>Rekanmu:</b> ${partner.map(q=>esc(q.name)).join(', ')}</p>`:''}<p class="small"><span class="sandal-ic">${sandalSVG(p.sandalHex,18)}</span>Sandalmu warna <b>${esc(p.sandal)}</b>.</p></div></div>
     <div class="bottom"><button class="primary" id="ok">Sudah hafal, sembunyikan</button></div>`);
   on('#ok','click',next);
 }
