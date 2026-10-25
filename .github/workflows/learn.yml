@@ -24,11 +24,14 @@ jobs:
         run: node scripts/fetch-data.mjs data/export.jsonl
       - name: Latih
         run: node scripts/train.mjs data/export.jsonl
-      - name: Uji pemahaman pesan dengan otak baru
+      - name: Siapkan browser untuk self-play dan uji
         run: |
           npm install --no-save playwright@1.61.0
           npx playwright install --with-deps chromium
-          node tests/nlu.mjs --all
+      - name: Self-play strategi bandar (keseimbangan dijaga 50–68%)
+        run: node scripts/selfplay.mjs
+      - name: Uji pemahaman pesan dengan otak baru
+        run: node tests/nlu.mjs --all
       - name: Ajukan PR
         env:
           GH_TOKEN: ${{ github.token }}

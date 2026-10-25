@@ -406,6 +406,32 @@ Kalau keyakinan bot di bawah 0,6 dan ada orang yang disebut, bot **tidak langsun
 - Jawaban singkat "iya" mengonfirmasi tebakan, sedangkan "bukan" membalik tuduh ↔ bela. Jawaban ini tidak memakai jatah pesan.
 - Konfirmasi dicatat sebagai label `x`, yaitu data latih paling tepercaya (bobot 3), tanpa tombol koreksi apa pun.
 
+### Bot menginterogasi dan menagih (`probeSpeak`, `genCallout`)
+- **Bertanya ke pemain**: setiap hari satu ibu (kepo, julid, tegas, atau sosialita) menanyai pemain, menyesuaikan apa yang sudah pemain lakukan:
+  - alibi ("semalam ngapain aja?");
+  - alasan menuduh ("kenapa yakin banget sama Bu X?");
+  - alasan membela ("kok belain Bu X terus?");
+  - pendapat, kalau pemain dari tadi diam.
+  
+  Bot menunggu jawaban sampai 15 detik ("Ibu-ibu menunggu jawabanmu…"), lalu si penanya menanggapi.
+- **Menagih ucapan yang bertentangan:**
+  - alibi yang berubah kelompok, misalnya dari "di rumah" (`H_ACTS`) ke "ke warung";
+  - alibi "di rumah" padahal ada laporan intip yang melihat pemain keluar;
+  - sikap yang berbalik terhadap orang yang sama (menuduh, lalu membela).
+  
+  Menarik ucapan dengan sengaja ("aku salah tuduh") tidak ditagih. Alibi pemain yang berubah juga masuk ke penalaran bot (`deductions` → `alibi`), sama seperti bandar bot yang lupa alibinya.
+
+### Bandar yang menyesuaikan siasat
+Selain strategi awal, bandar bot membaca keadaan:
+- mengaku Bendahara palsu saat dirinya mulai dicurigai;
+- mengorbankan rekan yang sudah pasti ketahuan;
+- ikut menumpuk tuduhan ke pemain yang sedang disorot.
+
+Bobot pemilihan strategi awal (`brain.json` → `bandar`) dihitung **self-play** (`scripts/selfplay.mjs`): setiap strategi dimainkan ratusan kali bot melawan bot, lalu bobotnya disesuaikan dengan hasilnya. Keseimbangan warga dijaga 50–68%. Hasil terakhir: bandar yang diam paling sering lolos (52%), bandar yang heboh paling sering ketahuan (36%).
+
+### Sakelar eksperimen (`flag`, `brain.json` → `exp`)
+Fitur baru (`probe`, `callout`, `adaptiveBandar`, `learnedLR`) bisa dinyalakan untuk sebagian pemain saja, misalnya `"exp":{"probe":0.5}`. Pembagiannya memakai angka acak yang hanya tersimpan di perangkat. Catatan permainan menyimpan fitur mana yang aktif, dan laporan mingguan membandingkan kelompok nyala dan mati: tingkat salah paham, tingkat keluar di tengah permainan, dan kemenangan pemain.
+
 ### Siapa yang menjawab (`sendHuman`, `botReply`)
 | Maksud pemain | Penjawab | Isi jawaban |
 |---|---|---|
@@ -504,6 +530,21 @@ tingkat salah paham = (pesan yang tidak dipahami aturan + pesan yang tebakan atu
 Patokannya di bawah 10%. Laporan mingguan menampilkan angka minggu ini, tren dibanding minggu lalu, riwayat 12 minggu (`brain.json` → `history`), salah tangkap terbanyak (misalnya `defend → accuse`), dan kata yang sering muncul di pesan yang gagal dipahami. Kata baru masuk daftar kalau dipakai minimal 10 kali, jadi tidak ada teks utuh pemain di laporan publik.
 
 Kalau angka ini bertahan di atas patokan walaupun aturan sudah diperluas, pilihan berikutnya sudah diukur: memanggil LLM di Cloudflare Workers AI hanya untuk pesan yang membuat aturan ragu (lihat bagian 10 dan `bench/`).
+
+### Bobot bukti dari permainan nyata (`brain.json` → `lr`)
+Rumus keyakinan bot (bagian 6) memakai rasio kemungkinan untuk setiap jenis bukti. Nilai bawaannya (`LR_DEFAULT`) sama persis dengan rumus awal. Setiap minggu, `train.mjs` menghitung ulang dari permainan nyata seberapa sering sasaran setiap bukti memang bandar, dibanding peluang dasar:
+
+```
+LR = odds(sasaran benar bandar | bukti) / odds(peluang dasar)        // smoothing Laplace, dibatasi 0,15–10
+```
+
+Dihitung terpisah untuk laporan intip, kabar Ratu Gosip, klaim Bendahara, tuduhan dan pembelaan bot, serta **tuduhan dan pembelaan pemain manusia**. Nilai baru dipakai kalau sudah ada minimal 30 kejadian. Contoh dari 11 permainan pertama: tuduhan pemain hanya tepat 35% (LR 0,83), jadi bot belajar lebih kritis terhadap tuduhan pemain. Tuduhan bot LR 1,41, dekat dengan tebakan awal 1,5.
+
+### Ukuran kecerdasan di laporan mingguan
+- **Akurasi dunia nyata**: audit acak guru (~10% pesan, sampel tak bias) dibandingkan tebakan aturan, serta tebakan yang dikonfirmasi pemain lewat pertanyaan balik.
+- **Bot melawan pemain**: berapa persen pemain yang jadi bandar tertangkap, dan berapa persen pemain warga yang salah dikeluarkan.
+- **Bobot bukti, eksperimen, self-play, tempo, dan tingkat salah paham.**
+- `scripts/real-exam.mjs` mengambil sampel pesan nyata yang sudah tersamar ke `data/real-exam.jsonl` (privat), untuk diperiksa manual dan dijadikan kasus uji baru.
 
 ### Siklus mingguan
 ```mermaid

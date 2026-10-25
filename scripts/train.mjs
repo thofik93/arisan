@@ -168,6 +168,58 @@ for (const h of allH.filter(h => h.x || h.l === 'mention' || (h.tl && WEAK[h.tl.
 const topWords = Object.entries(wc).filter(([, c]) => c >= 10).sort((a, b) => b[1] - a[1]).slice(0, 20);
 const corrections = {}; for (const h of allH) { const fix = h.x || (h.tl && WEAK[h.tl.i]); if (fix && WEAK[fix] !== WEAK[h.l]) { const k = `${h.l} → ${fix}`; corrections[k] = (corrections[k] || 0) + 1; } }
 
+// ---------- bobot bukti dari permainan nyata ----------
+// Untuk setiap jenis bukti (laporan intip, kabar Ratu Gosip, klaim Bendahara, tuduhan, pembelaan; dari bot dan dari pemain),
+// hitung seberapa sering sasarannya memang bandar dibanding peluang dasar. Hasilnya rasio kemungkinan (LR) untuk game.
+const MIN_LR_N = 30;
+const ev = {};
+const push = (k, hit, base) => { (ev[k] = ev[k] || { hit: 0, n: 0, odds: 0 }); ev[k].n++; ev[k].hit += hit ? 1 : 0; ev[k].odds += base / (1 - base); };
+for (const r of recs) {
+  const ps = r.players || []; const k = ps.filter(p => p.role === 'bandar').length; if (!ps.length || !k) continue;
+  const base = k / Math.max(2, ps.length - 1), isB = i => ps[i] && ps[i].role === 'bandar';
+  for (const m of r.msgs || []) {
+    if (m.t == null || !ps[m.t] || m.t === m.f) continue;
+    const key = m.y === 'report' ? (m.v ? 'reportOut' : 'reportIn') : m.y === 'claimGosip' ? (m.v ? 'gosipT' : 'gosipF') : m.y === 'claimBend' ? (m.v ? 'bendT' : 'bendF') : m.y === 'accuse' ? 'accuse' : m.y === 'defend' ? 'defend' : null;
+    if (key) push(key, isB(m.t), base);
+  }
+  for (const h of r.human || []) {
+    if (h.t == null || !ps[h.t] || ps[h.t].human) continue;
+    if (h.l === 'accuse') push('humanAccuse', isB(h.t), base); else if (h.l === 'defend') push('humanDefend', isB(h.t), base);
+  }
+}
+const lr = {}, lrRows = [];
+for (const [key, e] of Object.entries(ev)) {
+  const p = (e.hit + 1) / (e.n + 2), baseOdds = e.odds / e.n, v = +Math.max(.15, Math.min(10, (p / (1 - p)) / baseOdds)).toFixed(3);
+  lrRows.push(`- ${key}: ${v} (${e.n} kejadian, ${(100 * e.hit / e.n).toFixed(0)}% benar menunjuk bandar)${e.n < MIN_LR_N ? ' — belum dipakai' : ''}`);
+  if (e.n >= MIN_LR_N) lr[key] = v;
+}
+
+// ---------- akurasi dunia nyata ----------
+// Audit acak guru (~10% pesan, dipilih dengan hash yang sama seperti di server) adalah sampel tak bias: bandingkan tebakan aturan dengan guru.
+const auditPick = n => { let x = 7; for (const ch of n) x = (x * 31 + ch.charCodeAt(0)) >>> 0; return x % 10 === 0; };
+const audited = allH.filter(h => h.tl && h.tl.i && auditPick(h.n || '') && WEAK[h.l] && WEAK[h.tl.i]);
+const auditAgree = audited.filter(h => WEAK[h.l] === WEAK[h.tl.i]).length;
+const confirmed = allH.filter(h => h.x && WEAK[h.l]);
+const confirmRight = confirmed.filter(h => WEAK[h.l] === h.x).length;
+
+// ---------- bot menangkap pemain yang jadi bandar ----------
+const hb = ended.filter(r => { const h = (r.players || []).find(p => p.human); return h && h.role === 'bandar'; });
+const caught = hb.filter(r => (r.players || []).find(p => p.human).out != null).length;
+const hw = ended.filter(r => { const h = (r.players || []).find(p => p.human); return h && h.role !== 'bandar'; });
+const wronglyOut = hw.filter(r => (r.players || []).find(p => p.human).out != null).length;
+
+// ---------- eksperimen: bandingkan pemain dengan fitur nyala dan mati ----------
+const expRows = [];
+for (const key of ['probe', 'callout', 'adaptiveBandar', 'learnedLR']) {
+  const arm = on => recs.filter(r => r.exp && r.exp[key] === on);
+  const A = arm(true), B = arm(false);
+  if (A.length < 10 || B.length < 10) continue;
+  const stat = rs => { const hs = rs.flatMap(r => r.human || []); const miss = hs.filter(h => h.l === 'mention' || (h.x && WEAK[h.l] !== h.x)).length;
+    const end = rs.filter(r => r.result === 'end'); const win = end.filter(r => { const h = (r.players || []).find(p => p.human); return h && r.winner === (h.role === 'bandar' ? 'bandar' : 'warga'); }).length;
+    return `salah paham ${pct(miss, hs.length)}, keluar di tengah ${pct(rs.length - end.length, rs.length)}, pemain menang ${pct(win, end.length)}`; };
+  expRows.push(`- ${key}: nyala (${A.length}) ${stat(A)} | mati (${B.length}) ${stat(B)}`);
+}
+
 // ---------- tempo: kecepatan yang dipilih pemain dan jeda sebelum mereka membalas ----------
 const med = a => { if (!a.length) return null; const x = [...a].sort((p, q) => p - q); return x[Math.floor(x.length / 2)]; };
 const tempoRows = ['santai', 'normal', 'cepat'].map(sp => {
@@ -182,6 +234,7 @@ const tempoReport = tempoRows.length ? tempoRows.join('\n') + `\n- Pemain yang m
 
 const brain = { version: (prev.version || 0) + 1, trainedAt: new Date().toISOString().slice(0, 10), games: recs.length,
   slang: prev.slang || [], nb: nb || prev.nb || null, tells: tells || prev.tells || null,
+  lr: Object.keys(lr).length ? lr : (prev.lr || null), exp: prev.exp || null, bandar: prev.bandar || null,
   history };
 fs.writeFileSync('brain.json', JSON.stringify(brain) + '\n');
 
@@ -205,6 +258,20 @@ Kata yang sering muncul di pesan yang gagal dipahami (bahan aturan baru): ${topW
 - Model kata: ${nbNote}
 - Mengalahkan aturan: ${overrideNote || '-'}
 ${Object.entries(nbEval).map(([th, v]) => `  - ambang ${th}: cakupan ${pct(v.coverage, 1)}, presisi ${pct(v.precision, 1)}`).join('\n')}
+
+### Akurasi dunia nyata
+- Audit acak guru: aturan sependapat dengan guru pada **${pct(auditAgree, audited.length)}** dari ${audited.length} pesan sampel
+- Tebakan bot yang dikonfirmasi pemain lewat pertanyaan balik: ${pct(confirmRight, confirmed.length)} benar (${confirmed.length} pesan)
+
+### Kecerdasan bot melawan pemain
+- Pemain yang jadi bandar tertangkap: ${pct(caught, hb.length)} (${hb.length} permainan)
+- Pemain warga yang salah dikeluarkan: ${pct(wronglyOut, hw.length)} (${hw.length} permainan)
+
+### Bobot bukti dari permainan nyata
+${lrRows.join('\n') || '- belum ada data'}
+
+### Eksperimen
+${expRows.join('\n') || '- belum cukup data (minimal 10 permainan per kelompok)'}
 
 ### Tempo obrolan
 ${tempoReport}

@@ -56,6 +56,10 @@ Bot belajar **tanpa koreksi manual**. Setiap pesan diberi label dari sumber pali
 - **Model kata (naive Bayes)** dilatih dari label-label itu. Model dipakai saat aturan tidak menangkap maksud pesan (presisi minimal 90% pada data uji), dan boleh mengalahkan tebakan aturan yang lemah kalau terbukti lebih tepat. Butuh minimal 200 contoh.
 - **Gelagat**: membandingkan perilaku pemain manusia saat jadi bandar dan saat jadi warga (diam, menyangkal, menuduh, bertanya, mengaku Bendahara). Sebelum voting, bot menyesuaikan kecurigaannya terhadap pemain dengan pengali yang dibatasi 0,6–1,6.
 - **Tingkat salah paham** adalah ukuran utama apakah bot makin pintar: persentase pesan pemain yang tidak dipahami aturan, atau yang tebakan aturannya dibantah guru otomatis, voting, atau pesan susulan. Semuanya terdeteksi otomatis. Patokannya di bawah 10%. Laporan mingguan menampilkan angka minggu ini, tren dibanding minggu lalu, riwayat 12 minggu (disimpan di `brain.json`), jenis koreksi terbanyak, dan kata yang sering muncul di pesan yang gagal dipahami (hanya kata yang dipakai minimal 10 kali, tanpa teks utuh) sebagai bahan aturan baru.
+- **Bobot bukti** (`lr`): dari permainan nyata, seberapa sering laporan intip, kabar, klaim Bendahara, serta tuduhan dan pembelaan (bot maupun pemain) benar menunjuk bandar. Dipakai setelah minimal 30 kejadian.
+- **Self-play** (`scripts/selfplay.mjs`, jalan sebelum uji): bobot strategi bandar dari ratusan simulasi, dengan keseimbangan warga dijaga 50–68%.
+- **Eksperimen** (`exp`): fitur bisa dinyalakan untuk sebagian pemain. Laporan membandingkan kelompok nyala dan mati.
+- **Ukuran kecerdasan**: akurasi dunia nyata (audit acak guru), tebakan yang dikonfirmasi pemain, persentase pemain-bandar yang tertangkap, dan persentase pemain warga yang salah dikeluarkan.
 - **Gerbang uji**: `tests/nlu.mjs` menjalankan 302 kalimat pengembangan (wajib benar semua) dan tiga set uji tertutup, 150 + 80 + 40 kalimat (skornya tidak boleh turun dari `tests/holdout-baseline.json`) dengan otak baru. Kalau gagal, PR tidak dibuat.
 
 Model yang dilatih sendiri dari tebakannya tidak dipakai lagi untuk latihan, supaya kesalahannya tidak makin menguat.

@@ -25,6 +25,7 @@ export function sanitize(g) {
     result: g.result, day: int(g.day, 1, 9), winner: ['warga', 'bandar'].includes(g.winner) ? g.winner : null,
     dur: int(g.dur, 0, 7200),
     speed: ['santai', 'normal', 'cepat'].includes(g.speed) ? g.speed : null, sc: int(g.sc, 0, 50),
+    exp: g.exp && typeof g.exp === 'object' ? Object.fromEntries(['probe', 'callout', 'adaptiveBandar', 'learnedLR'].map(k => [k, typeof g.exp[k] === 'boolean' ? g.exp[k] : null])) : null,
     players: arr(g.players, 9).map(p => ({
       role: ROLES.has(p && p.role) ? p.role : null, bot: str(p && p.bot, 12, /^[a-z]+$/),
       human: bool(p && p.human), alive: bool(p && p.alive), out: int(p && p.out, 1, 9)
