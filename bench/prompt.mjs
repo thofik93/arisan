@@ -39,12 +39,13 @@ const sayings = {
   swear: () => `Demi Allah, aku bukan bandar!`,
   alibi: () => `Semalam aku di rumah, nonton sinetron sampai ketiduran.`
 };
-export function userPrompt({ text, context = [], players, me }) {
+export function userPrompt({ text, context = [], players, me, news = [] }) {
   const nm = n => n === 'ME' ? me : n;
   const lines = context.filter(([, t, tg]) => sayings[t] && (tg != null || !['accuse', 'defend', 'claimBend', 'report', 'claimGosip'].includes(t))).map(([f, t, tg, v]) => `${f}: ${sayings[t](nm(tg), v)}`);
+  const kabar = news.map(n => n.y === 'fitnah' && n.t ? `Kabar beredar: ${n.t} kelihatan punya banyak uang mendadak.` : n.y === 'paket' && n.t ? `Kurir COD berhenti di depan rumah ${n.t}, bayarnya tunai.` : n.y === 'sandal' && n.c ? `Ada yang lihat orang bersandal ${n.c} dekat kotak kas.` : null).filter(Boolean);
   return `Anggota grup: ${players.join(', ')}. Pemain (yang menulis pesan) adalah ${me}.
 
-Obrolan sebelumnya:
+${kabar.length ? 'Kabar pagi ini:\n' + kabar.join('\n') + '\n\n' : ''}Obrolan sebelumnya:
 ${lines.length ? lines.join('\n') : '(belum ada)'}
 
 Pesan pemain: "${text}"`;

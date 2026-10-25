@@ -38,6 +38,7 @@ export function sanitize(g) {
       ts: int(h && h.ts, 0, 7200), rl: int(h && h.rl, 0, 600),
       cx: arr(h && h.cx, 3).filter(x => Array.isArray(x) && pid(x[0]) != null && str(x[1], 16, /^[a-zA-Z]+$/)).map(x => [x[0], x[1], pid(x[2]), typeof x[3] === 'boolean' ? x[3] : null])
     })).filter(h => h.n != null && h.l != null),
+    news: arr(g.news, 30).map(n => ({ d: int(n && n.d, 1, 9), y: str(n && n.y, 12, /^[a-z]+$/), t: pid(n && n.t), c: str(n && n.c, 10, /^[a-z]+$/) })).filter(n => n.y),
     votes: arr(g.votes, 12).map(v => ({
       d: int(v && v.d, 1, 9), k: pid(v && v.k),
       v: arr(v && v.v, 9).filter(p => Array.isArray(p) && pid(p[0]) != null && pid(p[1]) != null).map(p => [p[0], p[1]])
@@ -70,11 +71,12 @@ async function teach(env, maxCalls = 40) {
     for (const [h, i] of todo) {
       const text = h.n.replace(/<p(\d)>/g, (_, d) => name(+d)).replace(/<me>/g, 'Bu Tamu');
       const context = (h.cx || []).map(([f, y, t, v]) => [name(f), y, t == null ? null : name(t), v]);
+      const news = (g.news || []).filter(n => n.d === h.d).map(n => ({ ...n, t: n.t == null ? null : name(n.t) }));
       let label = null, model = null;
       for (const m of TEACHER_MODELS) {
         calls++;
         try {
-          const out = await env.AI.run(m, { messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: userPrompt({ text, context, players, me: 'Bu Tamu' }) + (m.includes('qwen3') ? ' /no_think' : '') }], max_tokens: 400, temperature: 0 });
+          const out = await env.AI.run(m, { messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: userPrompt({ text, context, players, me: 'Bu Tamu', news }) + (m.includes('qwen3') ? ' /no_think' : '') }], max_tokens: 400, temperature: 0 });
           const raw = out && (out.response ?? (out.choices && out.choices[0] && out.choices[0].message && out.choices[0].message.content));
           const j = parseJSON(raw);
           if (j && INTENTS.includes(j.intent)) {

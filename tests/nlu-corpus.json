@@ -2044,5 +2044,167 @@
   "sandal": {
    "Bu Dewi": "merah"
   }
+ },
+ {
+  "text": "kok tiba tiba ada yang banyak uang",
+  "expect": "accuse@Bu Wati",
+  "news": [
+   "fitnah",
+   "Bu Wati"
+  ]
+ },
+ {
+  "text": "ada yang cod bayarnya tunai tuh",
+  "expect": "accuse@Bu Dewi",
+  "news": [
+   "paket",
+   "Bu Dewi"
+  ]
+ },
+ {
+  "text": "bendahara kok ada dua",
+  "expect": "accuse@Bu Yuyun",
+  "context": [
+   [
+    "Bu Wati",
+    "claimBend",
+    "Bu Lilis",
+    true
+   ],
+   [
+    "Bu Yuyun",
+    "claimBend",
+    "Bu Wati",
+    true
+   ]
+  ]
+ },
+ {
+  "text": "maling mana ada ngaku",
+  "expect": "accuse@Bu Endah",
+  "context": [
+   [
+    "Bu Endah",
+    "deny",
+    null
+   ]
+  ]
+ },
+ {
+  "text": "bu sri jadinya di rumah atau ke warung? omonganmu beda beda",
+  "expect": "accuse@Bu Sri"
+ },
+ {
+  "text": "alibi bu ratna berubah ubah",
+  "expect": "accuse@Bu Ratna"
+ },
+ {
+  "text": "ngaku aja, bu dewi",
+  "expect": "accuse@Bu Dewi"
+ },
+ {
+  "text": "jujur dong bu yuyun",
+  "expect": "accuse@Bu Yuyun"
+ },
+ {
+  "text": "kok kamu belain bu wati terus sih, bu lilis",
+  "expect": "accuse@Bu Lilis"
+ },
+ {
+  "text": "kelihatan banget bu endah lagi panik",
+  "expect": "accuse@Bu Endah"
+ },
+ {
+  "text": "bu sri kok gugup gitu",
+  "expect": "accuse@Bu Sri"
+ },
+ {
+  "text": "aku salah kira soal bu ratna, bandarnya kayaknya bu dewi",
+  "expect": "accuse@Bu Dewi"
+ },
+ {
+  "text": "bu wati emang gak suka sama aku",
+  "expect": "deny@Bu Wati"
+ },
+ {
+  "text": "maksudnya gimana bu endah?",
+  "expect": "ask@Bu Endah/why"
+ },
+ {
+  "text": "bu yuyun, semalam audit siapa?",
+  "expect": "ask@Bu Yuyun/alibi"
+ },
+ {
+  "text": "siapa yang gak curiga sama bu lilis coba",
+  "expect": "accuse@Bu Lilis"
+ },
+ {
+  "text": "aku setuju sama bu ratna",
+  "expect": "accuse@Bu Wati",
+  "context": [
+   [
+    "Bu Ratna",
+    "accuse",
+    "Bu Wati"
+   ],
+   [
+    "Bu Sri",
+    "defend",
+    "Bu Dewi"
+   ],
+   [
+    "Bu Lilis",
+    "accuse",
+    "Bu Endah"
+   ],
+   [
+    "Bu Endah",
+    "deny",
+    null
+   ],
+   [
+    "Bu Dewi",
+    "flavor",
+    null
+   ]
+  ]
+ },
+ {
+  "text": "denger kata bu ratna",
+  "expect": "accuse@Bu Wati",
+  "context": [
+   [
+    "Bu Ratna",
+    "accuse",
+    "Bu Wati"
+   ],
+   [
+    "Bu Sri",
+    "defend",
+    "Bu Dewi"
+   ],
+   [
+    "Bu Lilis",
+    "accuse",
+    "Bu Endah"
+   ],
+   [
+    "Bu Endah",
+    "deny",
+    null
+   ],
+   [
+    "Bu Dewi",
+    "flavor",
+    null
+   ]
+  ]
+ },
+ {
+  "text": "bu sri sandalnya hijau tuh",
+  "expect": "accuse@Bu Sri",
+  "sandal": {
+   "Bu Sri": "hijau"
+  }
  }
 ]

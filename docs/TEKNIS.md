@@ -399,6 +399,23 @@ Pesan dibaca bersama percakapan sebelumnya, **termasuk pesan pemain sendiri**:
 
 Kalau sudah ada nama sebelumnya, "bendahara palsu" diperlakukan sebagai tuduhan, bukan rujukan. Percaya pada pemberi pendapat ("aku percaya sama yang ngaku bendahara") berarti setuju dengan pendapatnya.
 
+### Pola dari pesan pemain sungguhan
+Dari laporan data pemain (27 permainan pertama), ada pola yang belum dikenal dan sekarang ditangani:
+
+| Pola | Contoh | Dibaca sebagai |
+|---|---|---|
+| Sindiran tanpa nama | "kok tiba-tiba ada yang banyak uang", "ada yang COD bayarnya tunai" | menuduh orang yang dikabarkan atau yang menerima paket |
+| Sindiran soal klaim | "bendahara kok ada dua", "maling mana ada ngaku" | menuduh pengaku Bendahara terakhir / yang barusan menyangkal |
+| Menagih kontradiksi orang lain | "jadinya telponan atau nyetrika? omonganmu beda-beda" | menuduh orang itu (`plinplan`) |
+| Sapaan di akhir | "ngaku aja, Bu Lilis", "kok kamu bela Bu Endah sih, Bu Ratna" | teguran / mencurigai si pembela |
+| Menarik ucapan lalu menuduh | "maaf Bu Wati aku salah kira. Bandarnya kayaknya Bu Sri…" | menuduh Bu Sri, membela Bu Wati |
+| Kata baru | "lagi panik/gugup", "denger kata Bu Sri" | mencurigakan / setuju dengan pendapat Bu Sri |
+| Larangan ke penuduh | "Bu Wati jangan ngarang" | teguran (bukan bukti Bu Wati jujur) |
+
+Catatan permainan kini juga menyimpan kabar pagi dan petunjuk (fitnah, sandal, paket COD), dan guru otomatis ikut membacanya.
+
+**Akurasi pada pesan nyata** (dibaca ulang dengan parser terbaru; label guru diperiksa manual untuk kasus yang meragukan): sampel audit acak **73% → 93%** (30 pesan), semua pesan berlabel **60% → 88%** (60 pesan). Kalimat-kalimat ini dipakai untuk memperbaiki bot, jadi angka ini bukan lagi ujian buta. Ujian buta berikutnya adalah permainan-permainan selanjutnya, yang tampil di laporan mingguan.
+
 ### Bertanya balik saat ragu (`confirmReply`, `genClarify`)
 Kalau keyakinan bot di bawah 0,6 dan ada orang yang disebut, bot **tidak langsung bereaksi**. Orang yang disebut (atau ibu yang paling kepo) bertanya balik, misalnya "Maksudnya Bu Susi percaya sama aku?" atau "Bu Sri kenapa, Bu Susi? Curiga atau gimana?". Maksimal dua kali per hari.
 
@@ -445,7 +462,7 @@ Fitur baru (`probe`, `callout`, `adaptiveBandar`, `learnedLR`) bisa dinyalakan u
 | Salam, tawa, terima kasih | 1–2 bot | Balasan sewajarnya |
 
 Akurasi (`tests/nlu.mjs --all`):
-- Korpus pengembangan: 302/302 kalimat, dipakai saat menyusun aturan, lapisan makna, dan konteks.
+- Korpus pengembangan: 321/321 kalimat, dipakai saat menyusun aturan, lapisan makna, dan konteks.
 - **Set uji tertutup 1** (`tests/nlu-holdout.mjs`, 150 kalimat, pedoman label di `tests/LABELS.md`): 89 (59%) → 136 (91%) dengan perbaikan pola → 138 (92%) dengan lapisan makna → **139 (92,7%)** dengan konteks.
 - **Set uji tertutup 3** (`tests/nlu-holdout3.mjs`, 40 percakapan: pesan pemain sebelumnya, rujukan deskriptif, jawaban alibi, jawaban satu nama, menarik ucapan): **7 (17,5%) → 40 (100%)** dengan fitur konteks. Ditulis sebelum fitur konteks dibuat.
 - **Set uji tertutup 2** (`tests/nlu-holdout2.mjs`, 80 kalimat dengan susunan bervariasi: pasif, korban/pelaku, cakupan negasi, kabar): **38 (47,5%) dengan pola saja → 71 (88,8%) dengan lapisan makna.** Set ini ditulis sebelum lapisan makna dibuat dan tidak dipakai untuk menyusunnya.
@@ -618,7 +635,7 @@ npm run android:apk   # APK debug (butuh JDK 21 dari Android Studio)
 
 | Uji | Perintah | Memeriksa |
 |---|---|---|
-| Pemahaman pesan | `node tests/nlu.mjs --all` | 302 kalimat pengembangan dan 270 kalimat di tiga set tertutup, termasuk konteks obrolan, dengan `brain.json` saat ini |
+| Pemahaman pesan | `node tests/nlu.mjs --all` | 321 kalimat pengembangan dan 270 kalimat di tiga set tertutup, termasuk konteks obrolan, dengan `brain.json` saat ini |
 | Benchmark LLM | `node bench/run.mjs --model …` lalu `node bench/hybrid.mjs` | Akurasi LLM saja dan gabungan aturan + LLM |
 | Keseimbangan | `ArisanSim.simulate(2000, 6)` di konsol browser | Persentase kemenangan warga dan rata-rata hari |
 | Permainan penuh | Skrip Playwright di Chromium dan WebKit | Semua layar dari beranda sampai akhir, mode bot dan oper HP, tanpa error dan tanpa halaman melebar |

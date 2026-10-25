@@ -60,7 +60,7 @@ Bot belajar **tanpa koreksi manual**. Setiap pesan diberi label dari sumber pali
 - **Self-play** (`scripts/selfplay.mjs`, jalan sebelum uji): bobot strategi bandar dari ratusan simulasi, dengan keseimbangan warga dijaga 50–68%.
 - **Eksperimen** (`exp`): fitur bisa dinyalakan untuk sebagian pemain. Laporan membandingkan kelompok nyala dan mati.
 - **Ukuran kecerdasan**: akurasi dunia nyata (audit acak guru), tebakan yang dikonfirmasi pemain, persentase pemain-bandar yang tertangkap, dan persentase pemain warga yang salah dikeluarkan.
-- **Gerbang uji**: `tests/nlu.mjs` menjalankan 302 kalimat pengembangan (wajib benar semua) dan tiga set uji tertutup, 150 + 80 + 40 kalimat (skornya tidak boleh turun dari `tests/holdout-baseline.json`) dengan otak baru. Kalau gagal, PR tidak dibuat.
+- **Gerbang uji**: `tests/nlu.mjs` menjalankan 321 kalimat pengembangan (wajib benar semua) dan tiga set uji tertutup, 150 + 80 + 40 kalimat (skornya tidak boleh turun dari `tests/holdout-baseline.json`) dengan otak baru. Kalau gagal, PR tidak dibuat.
 
 Model yang dilatih sendiri dari tebakannya tidak dipakai lagi untuk latihan, supaya kesalahannya tidak makin menguat.
 
