@@ -348,6 +348,34 @@ flowchart TD
 9. **Keyakinan**: setiap tebakan punya skor keyakinan (`conf`). Tebakan dari kata yang jelas bernilai 0,85. Tebakan yang lemah dan tidak bergantung konteks (misalnya hanya "bukan" + nama) bernilai 0,55 dan ditandai boleh dikalahkan (`ovr`).
 10. **Model kata**: kalau aturan tidak menangkap maksudnya, model naive Bayes hasil belajar menebak, di atas ambang `nb.min`. Model juga boleh **mengalahkan** tebakan aturan yang lemah (`ovr`) di atas ambang `nb.override`, tapi hanya kalau latihan membuktikan model lebih tepat daripada aturan pada pesan seperti itu. Model tidak membaca konteks obrolan, jadi tebakan yang bergantung konteks (setuju, membalas penuduh, dia/kamu) tidak pernah dikalahkan. Tanpa nama, model hanya boleh menebak pertanyaan kalau kalimatnya memang bertanya.
 
+### Lapisan makna (`semRead`)
+Pola kata kunci menebak dari kata yang muncul. Lapisan makna menyusun **struktur**: siapa (pelaku) melakukan apa (predikat) kepada siapa (objek). Sikap terhadap setiap orang dihitung dari makna predikatnya. Satu kata kerja yang dikenal berlaku untuk semua susunan kalimatnya.
+
+```
+"jangan percaya dulu, bisa jadi itu fitnah terhadap Bu Lilis"
+  percaya(objek: kabar tentang Bu Lilis) + "jangan"  → kabarnya diragukan → Bu Lilis +
+  fitnah(objek/korban: Bu Lilis)                      → Bu Lilis korban   → Bu Lilis +
+
+"uang kas dibawa kabur Bu Wati"        dibawa(pasif, pelaku: Bu Wati)   → Bu Wati −
+"bukan Bu Endah yang ngambil"          ngambil(subjek terbalik + "bukan") → Bu Endah +
+"yang fitnah Bu Endah itu bandarnya"   bandar = si pemfitnah, Bu Endah korban → Bu Endah +
+"aku gak yakin Bu Lilis bersih"        "gak yakin" membalik isinya       → Bu Lilis −
+```
+
+Komponennya:
+- **Kamus predikat** (`SEMX`): sikap pembicara (percaya, curiga, ragu), keberpihakan (bela, dukung, pilih, keluarin, awasi), perbuatan buruk (nilep, nyolong, bawa kabur, fitnah, jebak, tipu, ngeles, cari muka), bentuk pasif (difitnah, dijebak, dicuri, dibela), sifat (bandar, jujur, licik, polos), serta kabar dan omongan beserta kredibilitasnya (benar, masuk akal, hoaks, ngarang, gak berdasar).
+- **Frasa** (`SEM_PHRASES`) diringkas jadi satu makna: "mana mungkin" → negasi, "bawa kabur" → bawa, "cari muka" → caper, "salah sangka" → keliru.
+- **Struktur**:
+  - subjek adalah orang terdekat di kiri predikat;
+  - objek adalah orang atau kabar terdekat di kanan, termasuk objek berganda ("Bu Lilis sama Bu Wati");
+  - kalimat terbalik ("bukan X yang …", "yang … bukan X");
+  - pelaku di anak kalimat "yang fitnah X" tidak dianggap X.
+- **Cakupan negasi**: "gak/bukan/jangan/masa/susah/stop" hanya membalik predikat yang diikutinya. "Gak bilang", "siapa bilang", dan "gak yakin" membalik seluruh isi sesudahnya. "Terlalu baik buat jadi bandar" membalik sifat setelah "buat jadi".
+- **Kabar**: "kabar/gosip soal X" adalah kabar tentang X (kabar yang dipercaya membuat X −). "Omongan/alibi/cerita X" adalah milik X (yang masuk akal membuat X +). Kabar tanpa nama merujuk ke orang yang sedang difitnah pagi itu.
+- **Keraguan** ("kayaknya", "mungkin", "aku rasa") memberi bobot 0,7.
+
+Hasil lapisan makna menang atas pola lama untuk orang yang dibacanya. Pola lama tetap menjadi cadangan untuk kalimat yang tidak punya struktur yang dikenali. `semDebug(teks)` di `ArisanSim.debug` menampilkan struktur yang dibaca bot.
+
 ### Siapa yang menjawab (`sendHuman`, `botReply`)
 | Maksud pemain | Penjawab | Isi jawaban |
 |---|---|---|
@@ -361,14 +389,15 @@ flowchart TD
 | Salam, tawa, terima kasih | 1–2 bot | Balasan sewajarnya |
 
 Akurasi (`tests/nlu.mjs --all`):
-- Korpus pengembangan: 194/194 kalimat, dipakai saat menyusun aturan.
-- **Set uji tertutup** (`tests/nlu-holdout.mjs`, 150 kalimat, pedoman label di `tests/LABELS.md`): 89/150 (59%) sebelum perbaikan terakhir, sekarang 136/150 (91%). Set ini tidak dipakai untuk menyusun aturan, jadi angkanya jujur.
+- Korpus pengembangan: 260/260 kalimat, dipakai saat menyusun aturan dan lapisan makna.
+- **Set uji tertutup 1** (`tests/nlu-holdout.mjs`, 150 kalimat, pedoman label di `tests/LABELS.md`): 89 (59%) → 136 (91%) dengan perbaikan pola → **138 (92%)** dengan lapisan makna.
+- **Set uji tertutup 2** (`tests/nlu-holdout2.mjs`, 80 kalimat dengan susunan bervariasi: pasif, korban/pelaku, cakupan negasi, kabar): **38 (47,5%) dengan pola saja → 71 (88,8%) dengan lapisan makna.** Set ini ditulis sebelum lapisan makna dibuat dan tidak dipakai untuk menyusunnya.
 
 Perbandingan dengan LLM di Cloudflare Workers AI (`bench/`), pada set tertutup yang sama:
 
 | Pendekatan | Akurasi |
 |---|---|
-| Aturan saja | 90,7% |
+| Aturan saja (pola, sebelum lapisan makna) | 90,7% |
 | LLM saja | 66,7–87,3% (Llama 3.1 8B sampai Llama 3.3 70B) |
 | Aturan + LLM hanya saat aturan ragu (7% pesan) | 92,0–93,3% (terbaik Qwen3 30B, 0,6 detik) |
 
@@ -517,7 +546,7 @@ npm run android:apk   # APK debug (butuh JDK 21 dari Android Studio)
 
 | Uji | Perintah | Memeriksa |
 |---|---|---|
-| Pemahaman pesan | `node tests/nlu.mjs --all` | 194 kalimat pengembangan dan 150 kalimat set tertutup, termasuk konteks obrolan, dengan `brain.json` saat ini |
+| Pemahaman pesan | `node tests/nlu.mjs --all` | 260 kalimat pengembangan dan 230 kalimat di dua set tertutup, termasuk konteks obrolan, dengan `brain.json` saat ini |
 | Benchmark LLM | `node bench/run.mjs --model …` lalu `node bench/hybrid.mjs` | Akurasi LLM saja dan gabungan aturan + LLM |
 | Keseimbangan | `ArisanSim.simulate(2000, 6)` di konsol browser | Persentase kemenangan warga dan rata-rata hari |
 | Permainan penuh | Skrip Playwright di Chromium dan WebKit | Semua layar dari beranda sampai akhir, mode bot dan oper HP, tanpa error dan tanpa halaman melebar |

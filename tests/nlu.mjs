@@ -17,6 +17,7 @@ const brain = JSON.parse(fs.readFileSync(path.join(root, 'brain.json'), 'utf8'))
 const sets = [];
 if (!args.has('--holdout') || args.has('--all')) sets.push({ name: 'pengembangan', gate: 'all', cases: JSON.parse(fs.readFileSync(path.join(root, 'tests/nlu-corpus.json'), 'utf8')) });
 if (args.has('--holdout') || args.has('--all')) sets.push({ name: 'tertutup', gate: 'baseline', cases: (await import(path.join(root, 'tests/nlu-holdout.mjs'))).default });
+if (args.has('--holdout') || args.has('--all')) sets.push({ name: 'tertutup-2', gate: 'baseline', key: 'h2', cases: (await import(path.join(root, 'tests/nlu-holdout2.mjs'))).default });
 
 const b = await chromium.launch(); const p = await b.newPage();
 const errs = []; p.on('pageerror', e => errs.push(String(e)));
@@ -34,9 +35,10 @@ for (const s of sets) {
   console.log(`[${s.name}] ${score}/${res.length} benar (${(100 * score / res.length).toFixed(1)}%) dengan otak v${brain.version}`);
   if (s.gate === 'all' && bad.length) fail = true;
   if (s.gate === 'baseline') {
-    const base = fs.existsSync(baselinePath) ? JSON.parse(fs.readFileSync(baselinePath, 'utf8')).score : 0;
+    const all = fs.existsSync(baselinePath) ? JSON.parse(fs.readFileSync(baselinePath, 'utf8')) : {};
+    const key = s.key || 'score', base = all[key] || 0;
     if (score < base) { console.log(`  turun dari baseline ${base}`); fail = true; }
-    if (args.has('--save-baseline')) fs.writeFileSync(baselinePath, JSON.stringify({ score, total: res.length, at: new Date().toISOString().slice(0, 10) }) + '\n');
+    if (args.has('--save-baseline')) { all[key] = score; all.at = new Date().toISOString().slice(0, 10); fs.writeFileSync(baselinePath, JSON.stringify(all) + '\n'); }
   }
 }
 await b.close();
