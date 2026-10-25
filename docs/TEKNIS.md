@@ -275,7 +275,7 @@ Tempo mengikuti riset waktu baca: rata-rata orang dewasa membaca 238 kata per me
 
 - Pesan berikutnya tidak pernah muncul sebelum pesan sebelumnya cukup waktu dibaca pada 155 kata per menit (`readMs` × `read`: Santai 1,3, Normal 1, Cepat 0 untuk membaca sekilas). Waktu dasar animasi mengetik ikut dihitung, karena pemain tetap membaca selama animasi tampil.
 - Pesan penting (klaim, laporan, bukti, kabar, salah kirim) mendapat tambahan waktu berpikir (`key`: 2 / 1,5 / 0,5 detik).
-- Kabar pagi juga diberi waktu baca sebelum obrolan dimulai.
+- Kabar pagi muncul satu per satu. Dalam ±1,4 detik sudah ada ibu yang "sedang mengetik", supaya grup langsung terasa hidup (pedoman Nielsen: umpan balik dalam ±1 detik, perhatian hilang setelah ±10 detik). Waktu membaca kabar berjalan bersamaan dengan pesan pertama dan dibatasi 3,5 detik, sehingga pesan pertama muncul dalam ±7,5–9 detik. Sebelumnya, layar diam 17–23 detik.
 - Hasil pengukuran satu hari obrolan: jarak antar-pesan median 10,2 detik (Santai) dan 7,6 detik (Normal), tanpa satu pun pesan yang menyalip pembaca. Sebelumnya, di Normal, 9 dari 17 pesan muncul sebelum selesai dibaca.
 - Game mencatat kecepatan yang dipakai (`speed`), berapa kali diganti (`sc`), dan jeda pemain sebelum membalas (`rl`). Laporan mingguan menampilkan bagian "Tempo obrolan", supaya tempo bisa disesuaikan dari perilaku pemain sungguhan.
 

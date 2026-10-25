@@ -243,7 +243,9 @@ details[open] summary{margin-bottom:8px}
 .bottom.stack{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .bottom.stack .primary{grid-column:1 / -1}
 .bottom.stack > :nth-child(2):last-child{grid-column:1 / -1}
-@media (prefers-reduced-motion:reduce){.toast,.opt .vbar i{transition:none}}
+.pop{animation:popin .32s ease-out both}
+@keyframes popin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.toast,.opt .vbar i{transition:none}.pop{animation:none}}
 </style>
 </head>
 <body>
@@ -2605,9 +2607,12 @@ function dayScreen(){
   document.getElementById('feed').addEventListener('click',whoTap);
   if(me.alive)setTimeout(()=>coach('chat','Ketuk <b>avatar</b> seseorang untuk menuduh, membela, atau bertanya. Bisa juga ketik bebas.'),1500);
   scrollFeed();
-  // beri waktu membaca kabar pagi sebelum ibu-ibu mulai mengetik
+  // kabar pagi muncul satu per satu, lalu dalam ±1 detik sudah ada yang "mengetik" (tanda grup hidup).
+  // Waktu membaca kabar berjalan bersamaan dengan animasi mengetik pesan pertama, dan dibatasi supaya tidak terasa macet.
   const fd=document.getElementById('feed');chat.lastBotAt=Date.now();
-  setTimeout(()=>tick(tok),Math.max(900,readMs(fd?fd.textContent:'')*SPEEDS[chatSpeed].read));
+  if(fd&&!matchMedia('(prefers-reduced-motion: reduce)').matches)[...fd.children].forEach((el,i)=>{el.classList.add('pop');el.style.animationDelay=(i*280)+'ms';});
+  chat.firstExtra=Math.min(3500,readMs(fd?fd.textContent:'')*SPEEDS[chatSpeed].read*.3);
+  setTimeout(()=>tick(tok),900+(fd?fd.children.length:0)*120);
 }
 function narasi(){const others=alive().filter(p=>!p.human);return pickR(NARASI).replace('{t}',others.length?pickR(others).name:'tetangga');}
 /* Sidang: obrolan sisa dihentikan, dua tersangka teratas membela diri, lalu seorang saksi membongkar */
@@ -2704,7 +2709,8 @@ function tick(tok){
   const who=pl(m.from);
   m.text=m.text||textFor(m);
   addToFeed(`<div class="typing">${esc(who.name)} sedang mengetik…</div>`);
-  later(tok,typingTime(m.text),()=>{
+  const extra=chat.firstExtra||0;chat.firstExtra=0;
+  later(tok,typingTime(m.text)+extra,()=>{
     if(!who.alive){tick(tok);return;}
     applyMsg(m);addHeat(m);
     if(m.type==='probe')chat.awaitAnswer={from:m.from,kind:m.kind,x:m.x,at:Date.now()};
