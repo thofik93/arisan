@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">ARISAN</string>
-    <string name="title_activity_main">ARISAN</string>
+    <string name="app_name">Siapa yang Nilep?</string>
+    <string name="title_activity_main">Siapa yang Nilep?</string>
     <string name="package_name">io.github.thofik93.arisan</string>
     <string name="custom_url_scheme">io.github.thofik93.arisan</string>
 </resources>

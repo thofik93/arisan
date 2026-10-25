@@ -10,3 +10,10 @@ server/.dev.vars
 server/.wrangler/
 server/node_modules/
 bench/results/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example

@@ -1,0 +1,6 @@
+# Situs game di domain sendiri: Worker yang hanya menyajikan aset statis dari www/ (hasil scripts/build-web.mjs).
+name = "siapayangnilep"
+compatibility_date = "2025-09-01"
+
+[assets]
+directory = "../www"

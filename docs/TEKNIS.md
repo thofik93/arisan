@@ -620,6 +620,12 @@ Lihat `SPONSORS.md`. Secara teknis:
 - **Tombol tahap** (`setStage`) ada di dekat jempol dan menyala saat obrolan sepi.
 - **Aksesibilitas**: label `aria`, `aria-live` untuk hasil voting, dan animasi dimatikan kalau perangkat meminta *reduced motion*.
 
+### Merek dan beranda
+- **Nama tampil: "Siapa yang Nilep?"** (`BRAND`). Nama ini sama di judul halaman, pratinjau tautan (`og.png`, 1200×630, dibuat dari avatar asli), beranda, teks bagikan, kebijakan privasi, dan nama aplikasi Android/iOS.
+- **Pengunjung baru** (belum pernah main) hanya melihat judul, satu kalimat penjelasan, tiga langkah singkat, tombol besar "Main sekarang", dan pilihan main bareng teman. Profil, Lemari, Prestasi, Arisan Harian, dan pengaturan jumlah anggota muncul setelah permainan pertama.
+- **Permainan pertama langsung mulai** tanpa ditanya nama. Nama baru ditanyakan saat permainan kedua.
+- Kata "bandar" dan "tebak" tidak dipakai di teks promosi dan pratinjau tautan, karena dekat dengan istilah judi dan bisa kena filter iklan.
+
 ## 15. Build dan rilis
 
 ```bash
@@ -629,6 +635,7 @@ npm run android:apk   # APK debug (butuh JDK 21 dari Android Studio)
 - Aplikasi native memuat file lokal dari `www/`. `sponsors.json` dan `brain.json` diunduh dari alamat absolut GitHub Pages.
 - Tombol back Android menutup lembar yang terbuka. Saat bermain, tombol itu membuka menu.
 - Versi saat ini 1.0.0 (tag `v1.0.0`). Langkah rilis ke toko aplikasi ada di `RELEASE.md`.
+- **Situs di domain sendiri**: `node scripts/build-web.mjs && npx wrangler@4.152.0 deploy -c web/wrangler.toml`. Situs disajikan sebagai Worker aset statis bernama `siapayangnilep` (sementara di `siapayangnilep.thofik93.workers.dev`, nanti di `siapayangnilep.com`). GitHub Pages tetap aktif selama masa pindah.
 - **Server**: `cd server && npx wrangler@4.152.0 deploy`. Kredensial disimpan di `~/.config/arisan/` (token Cloudflare, token admin, salt), tidak di repo.
 
 ## 16. Pengujian
