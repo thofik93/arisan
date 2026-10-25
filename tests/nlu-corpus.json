@@ -2206,5 +2206,21 @@
   "sandal": {
    "Bu Sri": "hijau"
   }
+ },
+ {
+  "text": "aku curiga yang kerudung pink",
+  "expect": "accuse@Bu Ratna"
+ },
+ {
+  "text": "yang pakai kerudung hitam itu mencurigakan",
+  "expect": "accuse@Bu Sri"
+ },
+ {
+  "text": "yang jilbab oranye kayaknya bersih",
+  "expect": "defend@Bu Endah"
+ },
+ {
+  "text": "yang rambutnya terurai aneh deh",
+  "expect": "accuse@Bu Lilis"
  }
 ]

@@ -620,6 +620,13 @@ Lihat `SPONSORS.md`. Secara teknis:
 - **Tombol tahap** (`setStage`) ada di dekat jempol dan menyala saat obrolan sepi.
 - **Aksesibilitas**: label `aria`, `aria-live` untuk hasil voting, dan animasi dimatikan kalau perangkat meminta *reduced motion*.
 
+### Ciri tokoh yang jelas
+- **Satu nama satu warna kerudung, tanpa kembar** (`COLOR_NAME`): pink (Ratna), biru (Yuyun), hijau (Hajjah Siti), oranye (Endah), ungu (Wati), merah (Dewi), hitam (Sri). Bu Lilis berambut terurai. Kerudung pemain: cokelat (bawaan), emas, tosca, navy, batik.
+- **Latar avatar netral terang** (`AV_BG`) untuk semua tokoh, supaya warna kerudung yang menonjol, bukan warna latar.
+- **Sandal**: merah, putih, biru, kuning. Hijau tidak dipakai supaya aman untuk buta warna merah-hijau. Sandal terang diberi garis gelap.
+- **Ciri ditulis, tidak hanya diwarnai**: kartu anggota dan lembar profil menampilkan titik warna + "kerudung pink" dan ikon + "sandal merah". Kabar CCTV memakai titik warna yang sama.
+- Bot memahami rujukan ciri: "yang kerudung pink", "yang pakai jilbab hitam", "yang rambutnya terurai", "yang sandalnya merah".
+
 ### Merek dan beranda
 - **Nama tampil: "Siapa yang Nilep?"** (`BRAND`). Nama ini sama di judul halaman, pratinjau tautan (`og.png`, 1200×630, dibuat dari avatar asli), beranda, teks bagikan, kebijakan privasi, dan nama aplikasi Android/iOS.
 - **Pengunjung baru** (belum pernah main) hanya melihat judul, satu kalimat penjelasan, tiga langkah singkat, tombol besar "Main sekarang", dan pilihan main bareng teman. Profil, Lemari, Prestasi, Arisan Harian, dan pengaturan jumlah anggota muncul setelah permainan pertama.
