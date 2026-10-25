@@ -1281,5 +1281,59 @@
  {
   "text": "ayo semangat cari bandarnya",
   "expect": "chat"
+ },
+ {
+  "text": "jangan percaya dulu bisa jadi itu fitnah terhadap bu lilis",
+  "expect": "defend@Bu Lilis",
+  "context": [
+   [
+    "Bu Ratna",
+    "rumor",
+    "Bu Lilis"
+   ]
+  ],
+  "news": [
+   "fitnah",
+   "Bu Lilis"
+  ]
+ },
+ {
+  "text": "jangan percaya kabar itu, bu lilis difitnah",
+  "expect": "defend@Bu Lilis",
+  "context": [
+   [
+    "Bu Ratna",
+    "rumor",
+    "Bu Lilis"
+   ]
+  ],
+  "news": [
+   "fitnah",
+   "Bu Lilis"
+  ]
+ },
+ {
+  "text": "itu cuma fitnah buat bu lilis",
+  "expect": "defend@Bu Lilis"
+ },
+ {
+  "text": "kasian bu lilis jadi korban fitnah",
+  "expect": "defend@Bu Lilis"
+ },
+ {
+  "text": "jangan langsung percaya gosip soal bu lilis",
+  "expect": "defend@Bu Lilis"
+ },
+ {
+  "text": "kabar soal bu lilis belum tentu bener",
+  "expect": "defend@Bu Lilis"
+ },
+ {
+  "text": "jangan percaya bu lilis",
+  "expect": "accuse@Bu Lilis"
+ },
+ {
+  "text": "bu dewi kena fitnah tuh",
+  "expect": "defend@Bu Dewi"
  }
 ]

@@ -1607,6 +1607,11 @@ const W_SLY=/\b(muka dua|bermuka dua|sok suci|sok polos|sok tau|sok alim|sok ber
 const W_WARN=/\b(hati hati|waspada|awas|awasi|pantau|curigai|jaga jarak)\b/g;
 const W_SIDE=/\b(tim|dukung|mendukung|berpihak|pihak|belain|ngebelain)\b/g;
 const W_DIBELA=/\bdibela\w*/g;
+// korban fitnah dan keraguan pada kabar: "fitnah terhadap Bu X", "Bu X difitnah", "kabar soal Bu X belum tentu bener"
+const W_VICTIM=/\b(fitnah\w*|gosip|hoaks|hoax|isu|kabar burung)\s+(terhadap|ke|buat|untuk|sama|soal|tentang)\b|\b(difitnah|korban fitnah|dijebak|dikambinghitamkan|kena fitnah)\b/g;
+const W_RUMOR_DOUBT=/\b(belum tentu bener|belum tentu benar|gak bener|cuma gosip|cuma fitnah|belum pasti)\b/g;
+// "jangan percaya dulu", "jangan percaya kabar itu": yang tidak dipercaya adalah kabarnya, bukan orangnya
+const W_DOUBT=/\b(jangan|gak)\s+(langsung\s+|dulu\s+)?percaya(\s+dulu)?(?=\s+(kabar|gosip|berita|omongan|itu|isu|bisa|aja|dulu)\b|\s*$)/g;
 const W_NEGP=/\b(mana mungkin|gak mungkin lah|gak mungkin|gak bakal|gak akan)\b/g;
 const W_REBUT=/\b(ngarang|ngada ngada|ngadi ngadi|ngawur|ngaco|asal tuduh|asal nuduh|asal ngomong|sembarangan|fitnah\w*|masalah pribadi|urusan pribadi|sentimen|dendam|iri|salah sangka|salah orang|salah besar|gak ada bukti|tanpa bukti|tega|apaan sih|apa sih|kenapa sih|kok aku|kok tiba tiba aku|gak salah apa apa|jangan dengerin|jangan percaya)\b/;
 const W_LIAR=/\b(bohong\w*|pembohong|bandar\w*|palsu|gadungan|ngaku-ngaku|bukan bendahara|kambing hitam|mencurigakan|yang aneh|licik|ular|muka dua|bermuka dua|pelaku\w*)\b/;
@@ -1756,12 +1761,12 @@ function parseHuman(text){
     return[];
   };
   for(const c0 of clauses){
-    const c=c0.replace(W_NEGP,' gak ').replace(W_SLY,' xsly ').replace(W_WARN,' xwarn ').replace(W_DIBELA,' xdibela ').replace(W_SIDE,' xside ');
+    const c=(/\b(kabar|gosip|berita|isu)\b/.test(c0)?c0.replace(W_RUMOR_DOUBT,' xvictim '):c0).replace(W_DOUBT,' xdoubt ').replace(W_VICTIM,' xvictim ').replace(W_NEGP,' gak ').replace(W_SLY,' xsly ').replace(W_WARN,' xwarn ').replace(W_DIBELA,' xdibela ').replace(W_SIDE,' xside ');
     const ws=c.trim().split(' ');
     const ents=resolve(c);
     const self=/\b(aku|diriku)\b/.test(c);
     const kwAt=re=>ws.findIndex(w=>re.test(' '+w+' '));
-    const ai=kwAt(/\b(xsly|xwarn|xdibela)\b/)>=0?kwAt(/\b(xsly|xwarn|xdibela)\b/):kwAt(W_ACCUSE),di=kwAt(/\bxside\b/)>=0?kwAt(/\bxside\b/):kwAt(W_DEFEND);
+    const ai=kwAt(/\b(xsly|xwarn|xdibela)\b/)>=0?kwAt(/\b(xsly|xwarn|xdibela)\b/):kwAt(W_ACCUSE),di=kwAt(/\b(xside|xvictim|xdoubt)\b/)>=0?kwAt(/\b(xside|xvictim|xdoubt)\b/):kwAt(W_DEFEND);
     const negBefore=k=>k>0&&ws.slice(Math.max(0,k-4),k).some(w=>W_NEGW.test(w));
     if(/\b(sumpah|demi allah|wallahi|bersumpah)\b/.test(c))swear=true;
     if(W_ATTACK.test(c)||/\bkok\b.*\b(aku)\b/.test(c)&&/\b(nuduh|tuduh)\w*/.test(c)){if(ents.length)attackBy=ents[0];else if(ctx.atMe)attackBy=ctx.atMe.from;continue;}

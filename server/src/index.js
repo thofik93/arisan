@@ -53,7 +53,9 @@ export function sanitize(g) {
    Paket gratis Workers membatasi 50 subrequest per pemanggilan, jadi maksimal 40 pesan per jalan (cron per jam). */
 const TEACHER_MODELS = ['@cf/qwen/qwen3-30b-a3b-fp8', '@cf/meta/llama-3.3-70b-instruct-fp8-fast'];
 const ALIAS = 'ABCDEFGHI';
-const needsTeacher = h => h && (h.l === 'mention' || h.l === 'chat' || (typeof h.c === 'number' && h.c <= 0.75));
+// audit acak: sekitar 10% pesan yang dibaca aturan dengan yakin juga diperiksa, supaya salah baca yang percaya diri ikut ketahuan
+const audit = n => { let x = 7; for (const ch of n) x = (x * 31 + ch.charCodeAt(0)) >>> 0; return x % 10 === 0; };
+const needsTeacher = h => h && (h.l === 'mention' || h.l === 'chat' || (typeof h.c === 'number' && h.c <= 0.75) || audit(h.n || ''));
 async function teach(env, maxCalls = 40) {
   const { results } = await env.DB.prepare('SELECT id, body FROM games WHERE taught = 0 ORDER BY id LIMIT 50').all();
   let calls = 0, labeled = 0;
