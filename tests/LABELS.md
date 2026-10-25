@@ -10,6 +10,7 @@ Setiap kalimat diberi satu label `maksud@orang/jenis:nilai`. Pedoman yang sama d
 | `swear@X` | Seperti `deny`, tapi dengan sumpah (demi Allah, sumpah) |
 | `report@X:+` / `report@X:-` | Mengaku melihat X keluar rumah / di rumah semalam |
 | `claimBend@X:+` / `claimBend@X:-` | Mengaku Bendahara dengan hasil audit X: bandar / bersih |
+| `claimGosip@X:+` / `claimGosip@X:-` | Mengaku Ratu Gosip atau mendengar kabar soal X: buruk / baik ("biasa aja", "gak ada apa-apa") |
 | `claimRole` | Mengaku peran tanpa hasil (aku warga biasa, aku Bendahara) |
 | `ask@X/alibi` | Bertanya ke X semalam ke mana atau ngapain |
 | `ask@X/why` | Bertanya ke X kenapa menuduh atau apa buktinya |

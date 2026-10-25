@@ -13,7 +13,7 @@ export async function runCases(page, cases, brainJson) {
       const h = d.parseHuman(text);
       const nm = h.target != null ? '@' + G.players[h.target].name : '';
       let got = h.type + (h.type === 'ask' && h.addressee != null ? '@' + G.players[h.addressee].name : nm) + (h.ask ? '/' + h.ask : '');
-      if (/:[+-]$/.test(expect) && (h.type === 'report' || h.type === 'claimBend')) got += h.value ? ':+' : ':-';
+      if (/:[+-]$/.test(expect) && (h.type === 'report' || h.type === 'claimBend' || h.type === 'claimGosip')) got += h.value ? ':+' : ':-';
       out.push({ text, expect, got, conf: h.conf ?? null });
     }
     return out;

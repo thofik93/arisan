@@ -1638,5 +1638,29 @@
  {
   "text": "bu endah gak perlu dibela",
   "expect": "accuse@Bu Endah"
+ },
+ {
+  "text": "aku ratu gosip, bu yuyun aku denger orangnya biasa aja",
+  "expect": "claimGosip@Bu Yuyun:-"
+ },
+ {
+  "text": "aku dengar kabar bu wati lagi banyak uang",
+  "expect": "claimGosip@Bu Wati:+"
+ },
+ {
+  "text": "aku denger bu dewi gak ada apa apa",
+  "expect": "claimGosip@Bu Dewi:-"
+ },
+ {
+  "text": "aku ratu gosip, bu ratna mencurigakan",
+  "expect": "claimGosip@Bu Ratna:+"
+ },
+ {
+  "text": "aku dengar bu lilis gak mencurigakan kok",
+  "expect": "claimGosip@Bu Lilis:-"
+ },
+ {
+  "text": "aku dapet kabar bu endah sering transfer diam diam",
+  "expect": "claimGosip@Bu Endah:+"
  }
 ]

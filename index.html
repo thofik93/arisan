@@ -1567,7 +1567,7 @@ function botReply(p,hm){
       if(p.role==='bandar'&&hm.type==='claimBend'&&rnd()<.6)return{from:p.id,type:'claimBend',target:me.id,value:true};
       return{from:p.id,type:'deny',back:rnd()<.45+.15*grudge(p.id,me.id)?me.id:null};
     }
-    if(hm.type==='defend'||(hm.type==='claimBend'&&hm.value===false)||(hm.type==='report'&&hm.value===false))return{from:p.id,type:'react',core:'thanks',target:me.id};
+    if(hm.type==='defend'||(['claimBend','report','claimGosip'].includes(hm.type)&&hm.value===false))return{from:p.id,type:'react',core:'thanks',target:me.id};
     if(hm.type==='angry'){p.mood++;bump(p.id,me.id,1);return{from:p.id,type:'react',core:'hurt'};}
     if(hm.type==='deny'||hm.type==='swear')return{from:p.id,type:'react',core:'doubt'};
     return{from:p.id,type:'react',core:'whatQ',target:me.id};
@@ -1575,7 +1575,7 @@ function botReply(p,hm){
   if(hm.type==='question')return opinionOf(p);
   if(hm.type==='deny'||hm.type==='swear')return p.role!=='bandar'&&prob(p,me.id)<.45?{from:p.id,type:'react',core:'comfort',target:me.id}:{from:p.id,type:'react',core:'doubt'};
   if(hm.target!=null&&hostile)return verdictOn(p,hm.target,me);
-  if(hm.type==='defend'&&hm.target!=null){
+  if((hm.type==='defend'||(['claimBend','report','claimGosip'].includes(hm.type)&&hm.value===false))&&hm.target!=null){
     const agree=p.role==='bandar'?isBandar(hm.target)||rnd()<.5:prob(p,hm.target)<.4;
     return agree?{from:p.id,type:'defend',target:hm.target,core:'react'}:{from:p.id,type:'accuse',target:hm.target,core:'disagree',x:me.id};
   }
@@ -1925,7 +1925,14 @@ function parseHuman(text){
     return res('claimBend',{target:t,value:!(good&&!(neg&&good)||(neg&&bad))});
   }
   if(has(/\baku\b.{0,10}\b(warga|bu rt|ketua)\b/)&&!has(/\baku\s+(bukan|gak)\b/))return res('claimRole',{role:has(/\bwarga\b/)?'warga':'ketua'});
-  if(ments.length&&(has(/\baku\b.*\b(dengar|denger|ratu gosip)\b/)||has(/\b(dapat|dapet) kabar\b/)))return res('claimGosip',{target:ments[0].id,value:!has(W_DEFEND)});
+  if(ments.length&&(has(/\baku\b.*\b(dengar|denger|ratu gosip)\b/)||has(/\b(dapat|dapet) kabar\b/))){
+    // isi kabarnya dinilai dari makna (lapisan makna), lalu kamus kabar baik/buruk
+    const t=ments[0].id,sv=sem.score[t];
+    const good=has(/\b(biasa( biasa)?( aja| saja)?|gak ada apa apa|gak ada yang aneh|normal|wajar|aman|bersih|baik|jujur|lurus|tenang)\b/);
+    const bad=has(/\b(banyak uang|tas baru|kalung|transfer|mencurigakan|aneh|nyolong|nilep|bandar|mondar mandir|kaya mendadak|dp mobil|umroh)\b/);
+    const value=sv?sv<0:good&&!bad?false:bad?true:!has(W_DEFEND);
+    return res('claimGosip',{target:t,value});
+  }
   // ---- membalas orang yang baru menuduhku: bantahan, kecuali jelas menyebut dia bandar/pembohong ----
   if(A!=null&&pl(A).alive&&ments.every(m=>m.id===A)&&!has(/\b(makasih|terima kasih|setuju|percaya (sama )?kamu)\b/)){
     const selfDef=has(/\b(aku|diriku)\b.{0,10}\b(bukan|gak|bersih|jujur)\b|\bbukan aku\b/);
