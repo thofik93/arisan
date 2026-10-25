@@ -168,6 +168,18 @@ for (const h of allH.filter(h => h.x || h.l === 'mention' || (h.tl && WEAK[h.tl.
 const topWords = Object.entries(wc).filter(([, c]) => c >= 10).sort((a, b) => b[1] - a[1]).slice(0, 20);
 const corrections = {}; for (const h of allH) { const fix = h.x || (h.tl && WEAK[h.tl.i]); if (fix && WEAK[fix] !== WEAK[h.l]) { const k = `${h.l} → ${fix}`; corrections[k] = (corrections[k] || 0) + 1; } }
 
+// ---------- tempo: kecepatan yang dipilih pemain dan jeda sebelum mereka membalas ----------
+const med = a => { if (!a.length) return null; const x = [...a].sort((p, q) => p - q); return x[Math.floor(x.length / 2)]; };
+const tempoRows = ['santai', 'normal', 'cepat'].map(sp => {
+  const rs = recs.filter(r => r.speed === sp);
+  if (!rs.length) return null;
+  const rl = rs.flatMap(r => (r.human || []).map(h => h.rl).filter(x => typeof x === 'number'));
+  const quit = rs.filter(r => r.result === 'quit').length;
+  return `- ${sp}: ${rs.length} permainan (${pct(rs.length, recs.filter(r => r.speed).length)}), keluar di tengah ${pct(quit, rs.length)}, jeda sebelum membalas median ${med(rl) ?? '-'} detik`;
+}).filter(Boolean);
+const changed = recs.filter(r => r.sc > 0).length;
+const tempoReport = tempoRows.length ? tempoRows.join('\n') + `\n- Pemain yang mengganti kecepatan di tengah permainan: ${pct(changed, recs.filter(r => r.speed).length)}` : '- belum ada data tempo';
+
 const brain = { version: (prev.version || 0) + 1, trainedAt: new Date().toISOString().slice(0, 10), games: recs.length,
   slang: prev.slang || [], nb: nb || prev.nb || null, tells: tells || prev.tells || null,
   history };
@@ -193,6 +205,9 @@ Kata yang sering muncul di pesan yang gagal dipahami (bahan aturan baru): ${topW
 - Model kata: ${nbNote}
 - Mengalahkan aturan: ${overrideNote || '-'}
 ${Object.entries(nbEval).map(([th, v]) => `  - ambang ${th}: cakupan ${pct(v.coverage, 1)}, presisi ${pct(v.precision, 1)}`).join('\n')}
+
+### Tempo obrolan
+${tempoReport}
 
 ### Gelagat pemain (pengali kecurigaan bot terhadap pemain manusia)
 ${tells ? TELL_KEYS.filter(k => tells[k]).map(k => `- ${k}: ${tells[k]}`).join('\n') : `- belum cukup data (bandar ${tellCount.b.n}, warga ${tellCount.w.n} hari-pemain; perlu ${MIN_TELL_DAYS} per kelompok)`}

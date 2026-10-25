@@ -270,7 +270,16 @@ Setelah setiap pesan:
 
 Penjaga *ping-pong* mencegah dua bot saling membalas tanpa akhir.
 
-### Tempo (`tick`)
+### Tempo (`tick`, `paceAfter`)
+Tempo mengikuti riset waktu baca: rata-rata orang dewasa membaca 238 kata per menit (meta-analisis Brysbaert 2019), dan studi kecil di Indonesia menemukan sekitar 155 kata per menit. Mengetik di HP rata-rata 36 kata per menit (Palin dkk. 2019). Jeda yang menyesuaikan panjang pesan membuat bot terasa lebih manusiawi (Gnewuch dkk. 2018).
+
+- Pesan berikutnya tidak pernah muncul sebelum pesan sebelumnya cukup waktu dibaca pada 155 kata per menit (`readMs` × `read`: Santai 1,3, Normal 1, Cepat 0 untuk membaca sekilas). Waktu dasar animasi mengetik ikut dihitung, karena pemain tetap membaca selama animasi tampil.
+- Pesan penting (klaim, laporan, bukti, kabar, salah kirim) mendapat tambahan waktu berpikir (`key`: 2 / 1,5 / 0,5 detik).
+- Kabar pagi juga diberi waktu baca sebelum obrolan dimulai.
+- Hasil pengukuran satu hari obrolan: jarak antar-pesan median 10,2 detik (Santai) dan 7,6 detik (Normal), tanpa satu pun pesan yang menyalip pembaca. Sebelumnya, di Normal, 9 dari 17 pesan muncul sebelum selesai dibaca.
+- Game mencatat kecepatan yang dipakai (`speed`), berapa kali diganti (`sc`), dan jeda pemain sebelum membalas (`rl`). Laporan mingguan menampilkan bagian "Tempo obrolan", supaya tempo bisa disesuaikan dari perilaku pemain sungguhan.
+
+
 - Pesan muncul setelah indikator "sedang mengetik". Lama mengetik dan jeda antar-pesan mengikuti kecepatan (`SPEEDS`: santai, normal, cepat).
 - Kalau pemain sedang mengetik (`playerBusy`), bot menunggu.
 - Saat pemain diminta membela diri di sidang, bot menunggu sampai 12 detik.

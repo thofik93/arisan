@@ -24,6 +24,7 @@ export function sanitize(g) {
     v: int(g.v, 1, 99), brain: int(g.brain, 0, 1e6), n, daily: bool(g.daily),
     result: g.result, day: int(g.day, 1, 9), winner: ['warga', 'bandar'].includes(g.winner) ? g.winner : null,
     dur: int(g.dur, 0, 7200),
+    speed: ['santai', 'normal', 'cepat'].includes(g.speed) ? g.speed : null, sc: int(g.sc, 0, 50),
     players: arr(g.players, 9).map(p => ({
       role: ROLES.has(p && p.role) ? p.role : null, bot: str(p && p.bot, 12, /^[a-z]+$/),
       human: bool(p && p.human), alive: bool(p && p.alive), out: int(p && p.out, 1, 9)
@@ -33,7 +34,7 @@ export function sanitize(g) {
       t: pid(h && h.t), a: pid(h && h.a), x: str(h && h.x, 20, LABELS), xt: pid(h && h.xt),
       g: typeof (h && h.g) === 'number' && h.g >= 0 && h.g <= 1 ? h.g : null,
       c: typeof (h && h.c) === 'number' && h.c >= 0 && h.c <= 1 ? h.c : null,
-      ts: int(h && h.ts, 0, 7200),
+      ts: int(h && h.ts, 0, 7200), rl: int(h && h.rl, 0, 600),
       cx: arr(h && h.cx, 3).filter(x => Array.isArray(x) && pid(x[0]) != null && str(x[1], 16, /^[a-zA-Z]+$/)).map(x => [x[0], x[1], pid(x[2]), typeof x[3] === 'boolean' ? x[3] : null])
     })).filter(h => h.n != null && h.l != null),
     votes: arr(g.votes, 12).map(v => ({

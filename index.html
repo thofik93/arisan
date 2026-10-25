@@ -487,7 +487,7 @@ function applyTells(){
 function recordGame(result){
   if(!G||!G.rec||G.rec.sent)return null;
   G.rec.sent=true;
-  return{...G.rec,sent:undefined,result,day:G.day,winner:G.winner,dur:Math.round((Date.now()-G.rec.start)/1000),start:undefined,
+  return{...G.rec,sent:undefined,speed:chatSpeed,result,day:G.day,winner:G.winner,dur:Math.round((Date.now()-G.rec.start)/1000),start:undefined,
     players:G.players.map(p=>({role:p.role,bot:p.bot||null,human:!!p.human,alive:p.alive,out:p.kickedDay||null})),
     votes:G.votes.map(v=>({d:v.day,k:v.kicked,v:v.votes})),
     msgs:G.allMsgs.filter(m=>m.from!=null&&!pl(m.from).human).slice(0,400).map(m=>({d:m.day,f:m.from,y:m.type,t:m.target??null,v:m.value??null,c:m.core||null}))};
@@ -1938,7 +1938,7 @@ function openGameMenu(){
     ${inGame?'<button data-act="quit" class="ghost">Keluar ke beranda</button>':''}
     <button data-act="close" class="primary">Tutup</button>`;
   const el=openSheet(draw(),(b)=>{
-    if(b.dataset.speed){chatSpeed=b.dataset.speed;store.set('chatSpeed',chatSpeed);el.querySelector('.sheet').innerHTML='<span class="grab"></span>'+draw();return;}
+    if(b.dataset.speed){if(G&&G.rec&&chatSpeed!==b.dataset.speed)G.rec.sc=(G.rec.sc||0)+1;chatSpeed=b.dataset.speed;store.set('chatSpeed',chatSpeed);el.querySelector('.sheet').innerHTML='<span class="grab"></span>'+draw();return;}
     if(b.dataset.act==='share'){P.share=!P.share;saveP();if(P.share)flushOutbox();else store.set('outbox',[]);el.querySelector('.sheet').innerHTML='<span class="grab"></span>'+draw();return;}
     if(b.dataset.act==='sound'){muted=!muted;store.set('muted',muted);el.querySelector('.sheet').innerHTML='<span class="grab"></span>'+draw();return;}
     if(b.dataset.act==='close')return closeSheet();
@@ -2184,7 +2184,9 @@ function dayScreen(){
   document.getElementById('feed').addEventListener('click',whoTap);
   if(me.alive)setTimeout(()=>coach('chat','Ketuk <b>avatar</b> seseorang untuk menuduh, membela, atau bertanya. Bisa juga ketik bebas.'),1500);
   scrollFeed();
-  setTimeout(()=>tick(tok),900);
+  // beri waktu membaca kabar pagi sebelum ibu-ibu mulai mengetik
+  const fd=document.getElementById('feed');chat.lastBotAt=Date.now();
+  setTimeout(()=>tick(tok),Math.max(900,readMs(fd?fd.textContent:'')*SPEEDS[chatSpeed].read));
 }
 function narasi(){const others=alive().filter(p=>!p.human);return pickR(NARASI).replace('{t}',others.length?pickR(others).name:'tetangga');}
 /* Sidang: obrolan sisa dihentikan, dua tersangka teratas membela diri, lalu seorang saksi membongkar */
@@ -2238,11 +2240,20 @@ function msgHTML(m,id){
   return `<div class="msg ${cls}" ${id?`id="${id}"`:''}>${face}<div class="bubble"><span class="who" style="color:${p.hijab}">${esc(p.name)}${title}</span>${q}<span class="txt">${esc(m.text)}</span>${m.sponsor?`<span class="sp-under">${sponsorChip(m.sponsor)}</span>`:''}</div></div>`;
 }
 /* Kecepatan obrolan: lama mengetik mengikuti panjang pesan, ditambah jeda antar-pesan untuk berpikir */
+/* Tempo mengikuti riset waktu baca: rata-rata 155–238 kata per menit (studi Indonesia; Brysbaert 2019).
+   read = pengali waktu baca 155 kata/menit yang dijamin sebelum pesan berikutnya muncul (Cepat sengaja untuk membaca sekilas).
+   key  = tambahan waktu setelah pesan penting (klaim, laporan, bukti, kabar) supaya pemain sempat menghubungkan petunjuk. */
 const SPEEDS={
-  santai:{label:'Santai',base:1600,perChar:40,maxType:6000,gapMin:2200,gapMax:4200},
-  normal:{label:'Normal',base:900,perChar:22,maxType:3500,gapMin:900,gapMax:1800},
-  cepat: {label:'Cepat', base:400,perChar:8, maxType:1500,gapMin:300,gapMax:700}
+  santai:{label:'Santai',base:1600,perChar:40,maxType:6000,gapMin:2200,gapMax:4200,read:1.3,key:2000},
+  normal:{label:'Normal',base:900,perChar:22,maxType:3500,gapMin:900,gapMax:1800,read:1,key:1500},
+  cepat: {label:'Cepat', base:400,perChar:8, maxType:1500,gapMin:300,gapMax:700,read:0,key:500}
 };
+const READ_WPM=155;
+const readMs=text=>String(text||'').replace(/<[^>]+>/g,' ').trim().split(/\s+/).filter(Boolean).length/READ_WPM*60000;
+const isKeyMsg=m=>['claimBend','claimGosip','report','ketua','shot','salah'].includes(m.type)||!!m.why||/^(bongkar|counterBend|explain)/.test(m.core||'');
+/* Jeda sebelum pesan berikutnya: acak seperti manusia, tapi tidak pernah lebih cepat dari waktu membaca pesan ini */
+// pemain tetap membaca selama indikator "sedang mengetik" pesan berikutnya tampil, jadi waktu dasar mengetik ikut dihitung
+const paceAfter=(text,key)=>{const sp=SPEEDS[chatSpeed];return Math.max(gapTime(),readMs(text)*sp.read-sp.base)+(key?sp.key:0);};
 let chatSpeed=SPEEDS[store.get('chatSpeed','santai')]?store.get('chatSpeed','santai'):'santai';
 const typingTime=text=>{const sp=SPEEDS[chatSpeed];return Math.min(sp.maxType,sp.base+sp.perChar*String(text||'').length);};
 const gapTime=()=>{const sp=SPEEDS[chatSpeed];return sp.gapMin+rnd()*(sp.gapMax-sp.gapMin);};
@@ -2265,7 +2276,7 @@ function tick(tok){
   const m=botSpeak(slot);
   if(!m){tick(tok);return;}
   if(m.sys){
-    later(tok,1200,()=>{if(m.apply)m.apply();addToFeed(m.html);addHeat({type:m.heatType});sfx.jeng();later(tok,gapTime()+800,()=>tick(tok));});
+    later(tok,1200,()=>{if(m.apply)m.apply();addToFeed(m.html);chat.lastBotAt=Date.now();addHeat({type:m.heatType});sfx.jeng();later(tok,paceAfter(m.html,true)+800,()=>tick(tok));});
     return;
   }
   const who=pl(m.from);
@@ -2279,7 +2290,8 @@ function tick(tok){
     addToFeed(msgHTML(m,mid));sfx.pop();
     const rk=m.khianat?'khianat':m.type==='claimBend'&&!m.value?null:m.type;
     if(rk&&REACTS[rk]&&rnd()<.75)later(tok,900+rnd()*1400,()=>addReacts(mid,rk));
-    let next=gapTime();
+    chat.lastBotAt=Date.now();
+    let next=paceAfter(m.text,isKeyMsg(m));
     if(m.type==='salah'&&!m.voice){
       // pesan salah kirim dihapus lagi, tapi sudah sempat terbaca
       later(tok,2600,()=>{const el=document.querySelector('#'+mid+' .txt');if(el){el.textContent='🚫 Pesan ini telah dihapus';el.parentElement.classList.add('deleted');}
@@ -2378,7 +2390,8 @@ function sendHuman(raw){
     const lab=hm.type==='ask'?'ask_'+hm.ask:hm.type;
     // petunjuk untuk belajar tanpa koreksi: keyakinan aturan, waktu kirim, dan 3 pesan bot terakhir sebagai konteks
     const cx=G.msgs.filter(x=>x.from!=null&&x.from!==me.id&&!pl(x.from).human).slice(-3).map(x=>[x.from,x.type,x.target??null,x.value==null?null:!!x.value]);
-    G.rec.human.push({d:G.day,n:anonNorm(text),l:lab,t:hm.target??null,a:hm.addressee??null,g:hm.learned||null,c:Math.round((hm.conf??.85)*100)/100,ts:Math.round((Date.now()-G.rec.start)/1000),cx});
+    const rl=chat.lastBotAt?Math.min(600,Math.round((Date.now()-chat.lastBotAt)/1000)):null;
+    G.rec.human.push({d:G.day,n:anonNorm(text),l:lab,t:hm.target??null,a:hm.addressee??null,g:hm.learned||null,c:Math.round((hm.conf??.85)*100)/100,ts:Math.round((Date.now()-G.rec.start)/1000),rl,cx});
   }
   applyMsg(m);addHeat(m);
   // sikap tambahan dalam kalimat yang sama ("Bu A bukan bandar, Bu B yang bandar")
