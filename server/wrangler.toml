@@ -2,9 +2,12 @@ name = "arisan-brain"
 main = "src/index.js"
 compatibility_date = "2025-09-01"
 
-# Bersihkan data lama setiap hari jam 03.00 WIB
+# Setiap jam: guru otomatis memberi label pesan yang membuat aturan ragu. Jam 03.00 WIB juga membersihkan data lama.
 [triggers]
-crons = ["0 20 * * *"]
+crons = ["0 * * * *"]
+
+[ai]
+binding = "AI"
 
 [[d1_databases]]
 binding = "DB"

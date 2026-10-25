@@ -297,7 +297,7 @@ flowchart TD
   CL --> K[pecah per klausa,<br/>nilai sikap tiap orang]
   K --> R[gabungkan: tuduhan terkuat,<br/>pembelaan diri, laporan]
   R -- tidak tertangkap --> NB[model kata hasil belajar]
-  NB -- tidak yakin --> X[mention / chat → tawarkan 'Maksudmu?']
+  NB -- tidak yakin --> X[mention / chat]
 ```
 
 ### Tahapan
@@ -336,8 +336,8 @@ flowchart TD
    
    Klausa tentang diri sendiri ("aku bukan bandar", "aku bersih") menjadi pembelaan diri. Klausa "X nuduh aku terus" menjadi tuduhan balik. Fakta sandal diperiksa: kalau warnanya salah, tersangka akan membantah dengan warna aslinya.
 8. **Penggabungan**: orang dengan nilai tertinggi menjadi target utama. Sikap lain dalam kalimat yang sama tetap dicatat sebagai pesan tambahan (`extra`), misalnya "Bu Sri bukan bandar, Bu Wati yang bandar".
-9. **Model kata**: kalau aturan tidak menangkap maksudnya, model naive Bayes hasil belajar menebak. Tebakan hanya dipakai di atas ambang keyakinan.
-10. **"Maksudmu?"**: kalau pesan tetap tidak dipahami tapi menyebut nama, pemain ditawari tombol Curiga / Bela / Tanya. Jatah pesannya dikembalikan, dan pilihan itu menjadi data latih.
+9. **Keyakinan**: setiap tebakan punya skor keyakinan (`conf`). Tebakan dari kata yang jelas bernilai 0,85. Tebakan yang lemah dan tidak bergantung konteks (misalnya hanya "bukan" + nama) bernilai 0,55 dan ditandai boleh dikalahkan (`ovr`).
+10. **Model kata**: kalau aturan tidak menangkap maksudnya, model naive Bayes hasil belajar menebak, di atas ambang `nb.min`. Model juga boleh **mengalahkan** tebakan aturan yang lemah (`ovr`) di atas ambang `nb.override`, tapi hanya kalau latihan membuktikan model lebih tepat daripada aturan pada pesan seperti itu. Model tidak membaca konteks obrolan, jadi tebakan yang bergantung konteks (setuju, membalas penuduh, dia/kamu) tidak pernah dikalahkan. Tanpa nama, model hanya boleh menebak pertanyaan kalau kalimatnya memang bertanya.
 
 ### Siapa yang menjawab (`sendHuman`, `botReply`)
 | Maksud pemain | Penjawab | Isi jawaban |
@@ -376,15 +376,16 @@ Hanya dikirim kalau pemain menekan **Ya, bantu** (`P.share`). `recordGame` menyu
 - pesan pemain, dalam bentuk:
 
 ```json
-{"d":1, "n":"<p1> auranya gelap", "l":"mention", "x":"accuse", "t":1, "g":null}
+{"d":1, "n":"<p1> auranya gelap", "l":"mention", "c":0.3, "t":1, "ts":95, "cx":[[1,"claimBend",0,true]], "g":null}
 ```
-`n` = teks yang sudah dinormalisasi dan disamarkan (`anonNorm`), `l` = tebakan aturan, `x` = pilihan pemain lewat "Maksudmu?", `g` = keyakinan model kata kalau model yang menebak.
+`n` = teks yang sudah dinormalisasi dan disamarkan (`anonNorm`), `l` = tebakan aturan, `c` = keyakinan aturan, `ts` = detik sejak permainan dimulai, `cx` = tiga pesan bot terakhir sebagai konteks untuk guru otomatis, `g` = keyakinan model kata kalau model yang menebak.
 
 Catatan disimpan dulu di antrean `outbox` (maksimal 20). Kalau sedang offline, antrean dikirim saat game dibuka berikutnya (`flushOutbox`).
 
 ### Server (`server/src/index.js`)
 - `sanitize` membuang field yang tidak dikenal, memeriksa jenis dan rentang setiap nilai, serta menolak teks yang berisi karakter di luar huruf, angka, dan tanda baca dasar.
-- Pembatasan: 30 kiriman per jam per hash IP. Hash IP dihapus setelah 2 hari dan catatan dihapus setelah setahun (cron harian).
+- Pembatasan: 30 kiriman per jam per hash IP. Hash IP dihapus setelah 2 hari dan catatan dihapus setelah setahun.
+- **Guru otomatis** (`teach`, cron setiap jam, juga `POST /v1/teach` bertoken admin): memberi label pesan yang membuat aturan ragu memakai prompt yang sama dengan benchmark (`bench/prompt.mjs`), disimpan di tabel `teacher`, dan ikut terekspor sebagai `tl`.
 - Ekspor dilindungi token admin, dicek dengan perbandingan waktu-konstan.
 
 ### Model kata (naive Bayes multinomial)
@@ -396,11 +397,21 @@ P(token | c) = (jumlah token di c + 1) / (total token di c + ukuran kosakata)   
 keyakinan = 1 / Σ exp(skor(k) − skor_maks)
 ```
 
-- **Bobot contoh:**
-  - pilihan pemain lewat "Maksudmu?" ×3;
-  - tebakan aturan ×1;
-  - "chat" ×0,5;
-  - tebakan model sendiri tidak dipakai, supaya kesalahan tidak makin menguat.
+- **Label dan bobot:**
+
+Bot belajar **tanpa koreksi manual**. Setiap pesan diberi label dari sumber paling tepercaya yang tersedia:
+
+| Sumber | Bobot | Artinya |
+|---|---|---|
+| **Guru otomatis** (`tl`) | 2 | Setiap jam, server meminta LLM di Cloudflare Workers AI (Qwen3 30B, cadangan Llama 3.3 70B) memberi label **hanya** pada pesan yang membuat aturan ragu. Nama diganti samaran Bu A, Bu B, …, dan peran rahasia tidak pernah dikirim. Maksimal 40 pesan per jam |
+| **Pesan susulan** | 1,5 | Pesan ragu yang langsung disusul (≤ 60 detik) pesan yang jelas soal orang yang sama: maksudnya mengikuti pesan susulan |
+| **Voting** | 1,5 | Pemain menyebut X, aturan membacanya "membela" atau tidak paham, lalu pemain memilih X: pesannya bermusuhan dengan X |
+| Tebakan aturan yang yakin | 1 | Keyakinan ≥ 0,8 |
+
+Pilihan pemain dari versi lama ("Maksudmu?", bobot 3) tetap dipakai kalau ada di data lama.
+
+  Tebakan model sendiri tidak dipakai untuk latihan, supaya kesalahannya tidak makin menguat.
+- **Ambang "boleh mengalahkan aturan"** (`nb.override`): pada pesan uji yang membuat aturan ragu, ambang terendah di mana model minimal 85% tepat **dan** 5 poin lebih tepat dari aturan. Kalau tidak ada, model belum boleh mengalahkan aturan.
 - **Kosakata**: maksimal 3.000 token yang muncul minimal 3 kali.
 - **Ambang keyakinan**: dipilih dari 20% data uji, yaitu ambang terendah dengan presisi ≥ 90%.
 - **Syarat dikirim**: model baru dikirim kalau ada minimal 200 contoh.
@@ -419,9 +430,9 @@ LR(ciri) = P(ciri | pemain bandar) / P(ciri | pemain warga)      // smoothing La
 Ukuran utama apakah bot makin pintar:
 
 ```
-tingkat salah paham = (pesan yang dikoreksi pemain + pesan yang menyebut nama tapi tidak dipahami) / semua pesan pemain
+tingkat salah paham = (pesan yang tidak dipahami aturan + pesan yang tebakan aturannya dibantah guru, voting, atau pesan susulan) / semua pesan pemain
 ```
-Patokannya di bawah 10%. Laporan mingguan menampilkan angka minggu ini, tren dibanding minggu lalu, riwayat 12 minggu (`brain.json` → `history`), jenis koreksi terbanyak (misalnya `mention → accuse`), dan kata yang sering muncul di pesan yang gagal dipahami. Kata baru masuk daftar kalau dipakai minimal 10 kali, jadi tidak ada teks utuh pemain di laporan publik.
+Patokannya di bawah 10%. Laporan mingguan menampilkan angka minggu ini, tren dibanding minggu lalu, riwayat 12 minggu (`brain.json` → `history`), salah tangkap terbanyak (misalnya `defend → accuse`), dan kata yang sering muncul di pesan yang gagal dipahami. Kata baru masuk daftar kalau dipakai minimal 10 kali, jadi tidak ada teks utuh pemain di laporan publik.
 
 Kalau angka ini bertahan di atas patokan walaupun aturan sudah diperluas, pilihan berikutnya sudah diukur: memanggil LLM di Cloudflare Workers AI hanya untuk pesan yang membuat aturan ragu (lihat bagian 10 dan `bench/`).
 
@@ -519,7 +530,7 @@ npm run android:apk   # APK debug (butuh JDK 21 dari Android Studio)
 
 ## 18. Batasan yang diketahui
 
-- **Pemahaman pesan** berbasis aturan ditambah model kata sederhana, bukan model bahasa besar. Kalimat yang sangat panjang, sarkasme, atau bahasa daerah bisa salah dibaca. "Maksudmu?" dan latihan mingguan dirancang untuk mengecilkan celah ini seiring waktu.
+- **Pemahaman pesan** berbasis aturan ditambah model kata sederhana, bukan model bahasa besar. Kalimat yang sangat panjang, sarkasme, atau bahasa daerah bisa salah dibaca. Guru otomatis, sinyal voting, dan latihan mingguan dirancang untuk mengecilkan celah ini seiring waktu tanpa merepotkan pemain.
 - **Bot tidak benar-benar memahami makna**. Bot bernalar dari fakta permainan yang terstruktur (siapa mengaku apa, siapa keluar, sandal warna apa) dan menyusun kalimat dari fakta itu.
 - **Model belajar baru berguna setelah ada cukup data**: sekitar 200 contoh pesan untuk model kata, dan 30 hari-pemain per peran untuk gelagat.
 - **Mode oper HP** tidak mengirim catatan belajar, karena diskusinya terjadi langsung, bukan lewat chat.

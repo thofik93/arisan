@@ -17,20 +17,43 @@ const recs = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').fil
 if (!recs.length) { console.log('Belum ada catatan permainan. brain.json tidak diubah.'); process.exit(0); }
 const prev = fs.existsSync('brain.json') ? JSON.parse(fs.readFileSync('brain.json', 'utf8')) : { version: 0 };
 
-// ---------- label untuk model kata ----------
-// x = pilihan pemain lewat "Maksudmu?" (paling dipercaya); l = tebakan aturan (lemah)
+// ---------- label untuk model kata: bot belajar tanpa koreksi manual ----------
+// Setiap pesan diberi label dari sumber paling tepercaya yang tersedia:
+//   x       pilihan pemain (dari versi lama "Maksudmu?")                      bobot 3
+//   tl      guru otomatis: LLM di server memberi label pesan yang membuat aturan ragu   bobot 2
+//   susulan pesan berikutnya soal orang yang sama, yang dipahami dengan yakin       bobot 1,5
+//   voting  pemain menyebut X lalu memilih X: pesannya bermusuhan dengan X          bobot 1,5
+//   aturan  tebakan aturan yang yakin (keyakinan >= 0,8)                          bobot 1
 const WEAK = { accuse: 'accuse', defend: 'defend', deny: 'deny', swear: 'deny', question: 'question', ask_opinion: 'question',
   ask_callRole: 'question', ask_about: 'accuse', ask_alibi: 'ask_alibi', ask_why: 'ask_why', ask_role: 'ask_role',
-  greet: 'chat', laugh: 'chat', chat: 'chat' };
+  greet: 'chat', laugh: 'chat', chat: 'chat', thanks: 'chat', angry: 'chat', cry: 'chat' };
 const tokens = n => {
   const w = n.split(' ').map(x => /^<p\d+>$/.test(x) ? 'xp' : x).filter(x => x && x !== '<me>' && !/^[,.!;?]$/.test(x));
   const out = [...w]; for (let i = 0; i + 1 < w.length; i++) out.push(w[i] + '_' + w[i + 1]); return out;
 };
-const ex = [];
-for (const r of recs) for (const h of r.human || []) {
-  if (!h.n) continue;
-  if (h.x && CLASSES.includes(h.x)) ex.push({ t: tokens(h.n), c: h.x, w: 3, explicit: true, rule: h.l });
-  else if (!h.g && WEAK[h.l]) ex.push({ t: tokens(h.n), c: WEAK[h.l], w: h.l === 'chat' ? .5 : 1 });
+const ex = [], judged = [];
+for (const r of recs) {
+  const hi = (r.players || []).findIndex(p => p.human);
+  const vote = {}; for (const v of r.votes || []) for (const [voter, t] of v.v || []) if (voter === hi) vote[v.d] = t;
+  const hs = r.human || [];
+  hs.forEach((h, i) => {
+    if (!h.n) return;
+    const rule = WEAK[h.l] || null, unsure = h.l === 'mention' || (typeof h.c === 'number' && h.c <= .75);
+    let strong = null, src = null, w = 0;
+    if (h.x && CLASSES.includes(h.x)) { strong = h.x; src = 'pemain'; w = 3; }
+    else if (h.tl && h.tl.i) { strong = WEAK[h.tl.i] || null; src = strong ? 'guru' : null; w = 2; }
+    if (!strong && unsure) {
+      const nx = hs[i + 1];
+      if (nx && nx.d === h.d && (h.ts == null || nx.ts == null || nx.ts - h.ts <= 60) && WEAK[nx.l] && (nx.c ?? .85) >= .8 &&
+          ((h.t != null && (nx.t === h.t || nx.a === h.t)) || (h.t == null && nx.t != null))) { strong = WEAK[nx.l]; src = 'susulan'; w = 1.5; }
+    }
+    if (!strong && h.t != null && vote[h.d] === h.t && ['mention', 'defend', 'chat'].includes(h.l)) { strong = 'accuse'; src = 'voting'; w = 1.5; }
+    if (strong) { ex.push({ t: tokens(h.n), c: strong, w, src, rule, c0: h.c ?? .85 }); judged.push({ d: r.at, miss: rule !== strong, src }); }
+    else {
+      if (!h.g && rule && (h.c == null || h.c >= .8)) ex.push({ t: tokens(h.n), c: rule, w: rule === 'chat' ? .5 : 1, src: 'aturan', rule, c0: h.c ?? .85 });
+      judged.push({ d: r.at, miss: h.l === 'mention', src: null });
+    }
+  });
 }
 // pembagian latih/uji yang stabil
 const hash = s => { let x = 2166136261; for (const ch of s) x = Math.imul(x ^ ch.charCodeAt(0), 16777619); return x >>> 0; };
@@ -58,11 +81,12 @@ function guess(nb, t, min) {
   const best = nb.classes.reduce((a, b) => sc[b] > sc[a] ? b : a);
   return 1 / z >= min ? best : null;
 }
-let nb = null, nbNote = '';
+let nb = null, nbNote = '', overrideNote = '';
 const nbEval = {};
+const strongN = ex.filter(e => e.src !== 'aturan').length;
 if (ex.length >= MIN_EXAMPLES) {
   const m = trainNB(trainSet);
-  // ambang keyakinan: yang terendah dengan presisi >= 90% pada data uji
+  // ambang cadangan: yang terendah dengan presisi >= 90% pada data uji
   let min = .95;
   for (const th of [.6, .7, .8, .85, .9, .95]) {
     const out = test.map(e => [guess(m, e.t, th), e.c]).filter(([g]) => g);
@@ -70,8 +94,18 @@ if (ex.length >= MIN_EXAMPLES) {
     nbEval[th] = { coverage: out.length / Math.max(1, test.length), precision: prec };
     if (prec >= .9 && th < min) min = th;
   }
-  nb = { ...trainNB(ex), min };
-  nbNote = `dilatih dari ${ex.length} contoh (${ex.filter(e => e.explicit).length} dipilih pemain lewat "Maksudmu?"), ambang ${min}`;
+  // ambang "boleh mengalahkan aturan": hanya kalau, pada pesan uji yang membuat aturan ragu, model terbukti lebih tepat dari aturan
+  let override = null;
+  const doubt = test.filter(e => e.src !== 'aturan' && e.c0 <= .75);
+  const ruleAcc = doubt.length ? doubt.filter(e => e.rule === e.c).length / doubt.length : 1;
+  for (const th of [.75, .8, .85, .9, .95]) {
+    const out = doubt.map(e => [guess(m, e.t, th), e.c]).filter(([g]) => g);
+    const prec = out.length ? out.filter(([g, c]) => g === c).length / out.length : 0;
+    if (out.length >= 10 && prec >= Math.max(.85, ruleAcc + .05)) { override = th; break; }
+  }
+  nb = { ...trainNB(ex), min, override };
+  nbNote = `dilatih dari ${ex.length} contoh (${strongN} berlabel dari guru, voting, atau pesan susulan), ambang cadangan ${min}`;
+  overrideNote = override ? `boleh mengalahkan aturan yang ragu pada keyakinan >= ${override} (aturan hanya benar ${(100 * ruleAcc).toFixed(0)}% pada pesan seperti itu)` : `belum boleh mengalahkan aturan (belum terbukti lebih tepat pada ${doubt.length} pesan uji yang meragukan)`;
 } else nbNote = `belum cukup data (${ex.length}/${MIN_EXAMPLES} contoh), model kata tidak dikirim`;
 
 // ---------- gelagat pemain manusia yang jadi bandar ----------
@@ -113,18 +147,15 @@ const corrected = allH.filter(h => h.x).length;
 const fallback = allH.filter(h => h.g).length;
 const quitDay = {}; for (const r of quits) quitDay[r.day] = (quitDay[r.day] || 0) + 1;
 
-// ---------- tingkat salah paham: ukuran utama apakah bot makin pintar ----------
-// salah paham = pesan yang dikoreksi pemain ("Maksudmu?" / "salah paham?") + pesan yang menyebut nama tapi tidak dipahami.
-// Obrolan tanpa maksud ("chat") dihitung terpisah karena sering memang bukan untuk permainan.
-const missOf = hs => {
-  const miss = hs.filter(h => h.x || h.l === 'mention').length;
-  return { n: hs.length, miss, rate: hs.length ? miss / hs.length : null };
-};
+// ---------- tingkat salah paham, terdeteksi otomatis ----------
+// salah paham = pesan yang tidak dipahami aturan (mention), atau yang tebakan aturannya dibantah guru, voting, atau pesan susulan.
+const missOf = js => ({ n: js.length, miss: js.filter(j => j.miss).length, rate: js.length ? js.filter(j => j.miss).length / js.length : null });
 const DAY = 864e5, now = Date.now();
-const inWeek = (r, k) => { const t = Date.parse((r.at || '').replace(' ', 'T') + 'Z'); return isFinite(t) && t <= now - k * 7 * DAY && t > now - (k + 1) * 7 * DAY; };
-const hasDates = recs.some(r => r.at);
-const thisWeek = missOf((hasDates ? recs.filter(r => inWeek(r, 0)) : recs).flatMap(r => r.human || []));
-const lastWeek = missOf(recs.filter(r => inWeek(r, 1)).flatMap(r => r.human || []));
+const inWeek = (at, k) => { const t = Date.parse((at || '').replace(' ', 'T') + 'Z'); return isFinite(t) && t <= now - k * 7 * DAY && t > now - (k + 1) * 7 * DAY; };
+const hasDates = judged.some(j => j.d);
+const thisWeek = missOf(hasDates ? judged.filter(j => inWeek(j.d, 0)) : judged);
+const lastWeek = missOf(judged.filter(j => inWeek(j.d, 1)));
+const bySrc = {}; for (const j of judged.filter(j => j.miss)) { const k = j.src || 'tidak dipahami'; bySrc[k] = (bySrc[k] || 0) + 1; }
 const history = (prev.history || []).slice(-11);
 if (thisWeek.rate != null) history.push({ at: new Date().toISOString().slice(0, 10), rate: +thisWeek.rate.toFixed(4), n: thisWeek.n });
 const TARGET = .10;
@@ -133,9 +164,9 @@ const trend = thisWeek.rate != null && lastWeek.rate != null ? (thisWeek.rate < 
 // kata yang sering muncul di pesan yang gagal dipahami; hanya kata yang dipakai minimal 10 kali (tanpa teks utuh)
 const STOP = new Set(['aku', 'kamu', 'dia', 'bu', 'yang', 'itu', 'ini', 'sama', 'ya', 'sih', 'deh', 'dong', 'aja', 'kok', 'lah', 'nih', 'di', 'ke', 'dan', 'gak', 'udah', 'sudah', 'juga', 'tapi', 'kalau', 'kan', 'ada', 'mau', 'jadi', 'ibu', 'kalian']);
 const wc = {};
-for (const h of allH.filter(h => h.x || h.l === 'mention')) for (const w of new Set(h.n.split(' '))) if (/^[a-z-]{3,}$/.test(w) && !STOP.has(w)) wc[w] = (wc[w] || 0) + 1;
+for (const h of allH.filter(h => h.x || h.l === 'mention' || (h.tl && WEAK[h.tl.i] && WEAK[h.tl.i] !== WEAK[h.l]))) for (const w of new Set(h.n.split(' '))) if (/^[a-z-]{3,}$/.test(w) && !STOP.has(w)) wc[w] = (wc[w] || 0) + 1;
 const topWords = Object.entries(wc).filter(([, c]) => c >= 10).sort((a, b) => b[1] - a[1]).slice(0, 20);
-const corrections = {}; for (const h of allH.filter(h => h.x)) { const k = `${h.l} → ${h.x}`; corrections[k] = (corrections[k] || 0) + 1; }
+const corrections = {}; for (const h of allH) { const fix = h.x || (h.tl && WEAK[h.tl.i]); if (fix && WEAK[fix] !== WEAK[h.l]) { const k = `${h.l} → ${fix}`; corrections[k] = (corrections[k] || 0) + 1; } }
 
 const brain = { version: (prev.version || 0) + 1, trainedAt: new Date().toISOString().slice(0, 10), games: recs.length,
   slang: prev.slang || [], nb: nb || prev.nb || null, tells: tells || prev.tells || null,
@@ -148,17 +179,19 @@ Data: **${recs.length} permainan** (${ended.length} selesai, ${quits.length} kel
 
 ### Tingkat salah paham ${thisWeek.rate == null ? '' : thisWeek.rate <= TARGET ? '✅' : '⚠️'}
 **${fmt(thisWeek.rate)}** dari ${thisWeek.n} pesan ${hasDates ? 'minggu ini' : ''} (patokan: di bawah ${fmt(TARGET)}). Tren: ${trend}.
+Terdeteksi otomatis, tanpa koreksi pemain: ${Object.entries(bySrc).map(([k, c]) => `${k} ${c}`).join(', ') || '-'}.
 ${history.length > 1 ? 'Riwayat: ' + history.map(h => `${h.at} ${fmt(h.rate)}`).join(' · ') : ''}
 
-Koreksi pemain (tebakan bot → maksud sebenarnya): ${Object.entries(corrections).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, c]) => `${k} (${c})`).join(', ') || '-'}
+Salah tangkap terbanyak (tebakan aturan → maksud sebenarnya): ${Object.entries(corrections).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, c]) => `${k} (${c})`).join(', ') || '-'}
 
 Kata yang sering muncul di pesan yang gagal dipahami (bahan aturan baru): ${topWords.map(([w, c]) => `${w} (${c})`).join(', ') || '- (belum ada kata yang dipakai 10 kali atau lebih)'}
 
 ### Pemahaman pesan
 - Pesan yang tidak dipahami aturan: **${pct(notUnderstood, allH.length)}**
-- Pesan yang diperjelas pemain lewat "Maksudmu?": ${corrected}
+- Label otomatis: ${['guru', 'voting', 'susulan', 'pemain'].map(k => `${k} ${ex.filter(e => e.src === k).length}`).join(', ')}
 - Pesan yang ditebak model kata minggu lalu: ${fallback}
 - Model kata: ${nbNote}
+- Mengalahkan aturan: ${overrideNote || '-'}
 ${Object.entries(nbEval).map(([th, v]) => `  - ambang ${th}: cakupan ${pct(v.coverage, 1)}, presisi ${pct(v.precision, 1)}`).join('\n')}
 
 ### Gelagat pemain (pengali kecurigaan bot terhadap pemain manusia)

@@ -33,11 +33,15 @@ const sayings = {
   accuse: (t) => `Aku curiga sama ${t}. Dari kemarin gelagatnya aneh.`,
   defend: (t) => `Aku yakin ${t} bukan bandar.`,
   claimBend: (t, v) => v ? `Ibu-ibu, aku Bendahara. Semalam aku audit ${t}, hasilnya BANDAR!` : `Aku Bendahara. Semalam aku audit ${t}, bersih.`,
-  report: (t, v) => v ? `Semalam aku lihat ${t} keluar rumah jam 1an.` : `Semalam ${t} di rumah aja, lampunya mati dari jam 9.`
+  report: (t, v) => v ? `Semalam aku lihat ${t} keluar rumah jam 1an.` : `Semalam ${t} di rumah aja, lampunya mati dari jam 9.`,
+  claimGosip: (t, v) => v ? `Aku dengar kabar ${t} lagi banyak uang, mencurigakan.` : `Kabar soal ${t} biasa-biasa aja.`,
+  deny: () => `Aku bukan bandar! Itu fitnah.`,
+  swear: () => `Demi Allah, aku bukan bandar!`,
+  alibi: () => `Semalam aku di rumah, nonton sinetron sampai ketiduran.`
 };
 export function userPrompt({ text, context = [], players, me }) {
   const nm = n => n === 'ME' ? me : n;
-  const lines = context.map(([f, t, tg, v]) => `${f}: ${(sayings[t] || sayings.accuse)(nm(tg), v)}`);
+  const lines = context.filter(([, t, tg]) => sayings[t] && (tg != null || !['accuse', 'defend', 'claimBend', 'report', 'claimGosip'].includes(t))).map(([f, t, tg, v]) => `${f}: ${sayings[t](nm(tg), v)}`);
   return `Anggota grup: ${players.join(', ')}. Pemain (yang menulis pesan) adalah ${me}.
 
 Obrolan sebelumnya:

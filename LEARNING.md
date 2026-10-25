@@ -13,7 +13,7 @@ Hanya kalau pemain menekan **Ya, bantu** di akhir permainan pertamanya. Bisa dim
 
 - Hasil permainan, peran, voting, dan jenis pesan bot (bukan teksnya).
 - Pesan yang diketik pemain, sudah dirapikan dan **disamarkan**: nama anggota jadi `<p3>`, nama pemain jadi `<me>`, angka panjang jadi `<num>`. Maksimal 200 karakter.
-- Tebakan maksud dari aturan (`l`), dan pilihan pemain lewat tombol **Maksudmu?** (`x`) saat bot tidak paham. Pilihan ini adalah data latih paling berharga.
+- Tebakan maksud dari aturan (`l`), keyakinannya (`c`), waktu kirim (`ts`), dan tiga pesan bot terakhir sebagai konteks (`cx`).
 
 Tidak ada akun, ID perangkat, atau IP. Server menyimpan hash IP per jam hanya untuk membatasi spam (30 kiriman per jam), lalu menghapusnya setelah 2 hari. Catatan dihapus otomatis setelah setahun.
 
@@ -25,6 +25,7 @@ Cloudflare Worker dengan database D1.
 | `POST /v1/games` | Menerima catatan dari game. Divalidasi ketat; field yang tidak dikenal dibuang. |
 | `GET /v1/export?after=ID` | JSONL untuk pelatihan. Wajib `Authorization: Bearer <ADMIN_TOKEN>`. |
 | `GET /v1/stats` | Jumlah permainan. Wajib token admin. |
+| `POST /v1/teach` | Menjalankan guru otomatis sekarang (biasanya otomatis setiap jam). Wajib token admin. |
 
 Pasang pertama kali:
 ```bash
@@ -41,9 +42,20 @@ Lalu isi `LEARN_API` di `index.html` dengan alamat worker, dan tambahkan secret 
 ## 3. Pelatihan (`scripts/train.mjs`)
 Setiap Senin 02.00 WIB, `.github/workflows/learn.yml` mengunduh data, melatih, menguji, lalu membuka PR.
 
-- **Model kata (naive Bayes)** belajar dari pesan yang diperjelas pemain dan dari tebakan aturan yang yakin. Model ini hanya dipakai saat aturan tidak menangkap maksud pesan, dengan ambang keyakinan yang dipilih supaya presisinya minimal 90% pada data uji. Butuh minimal 200 contoh.
+Bot belajar **tanpa koreksi manual**. Setiap pesan diberi label dari sumber paling tepercaya yang tersedia:
+
+| Sumber | Bobot | Artinya |
+|---|---|---|
+| **Guru otomatis** (`tl`) | 2 | Setiap jam, server meminta LLM di Cloudflare Workers AI (Qwen3 30B, cadangan Llama 3.3 70B) memberi label **hanya** pada pesan yang membuat aturan ragu. Nama diganti samaran Bu A, Bu B, …, dan peran rahasia tidak pernah dikirim. Maksimal 40 pesan per jam |
+| **Pesan susulan** | 1,5 | Pesan ragu yang langsung disusul (≤ 60 detik) pesan yang jelas soal orang yang sama: maksudnya mengikuti pesan susulan |
+| **Voting** | 1,5 | Pemain menyebut X, aturan membacanya "membela" atau tidak paham, lalu pemain memilih X: pesannya bermusuhan dengan X |
+| Tebakan aturan yang yakin | 1 | Keyakinan ≥ 0,8 |
+
+Pilihan pemain dari versi lama ("Maksudmu?", bobot 3) tetap dipakai kalau ada di data lama.
+
+- **Model kata (naive Bayes)** dilatih dari label-label itu. Model dipakai saat aturan tidak menangkap maksud pesan (presisi minimal 90% pada data uji), dan boleh mengalahkan tebakan aturan yang lemah kalau terbukti lebih tepat. Butuh minimal 200 contoh.
 - **Gelagat**: membandingkan perilaku pemain manusia saat jadi bandar dan saat jadi warga (diam, menyangkal, menuduh, bertanya, mengaku Bendahara). Sebelum voting, bot menyesuaikan kecurigaannya terhadap pemain dengan pengali yang dibatasi 0,6–1,6.
-- **Tingkat salah paham** adalah ukuran utama apakah bot makin pintar: persentase pesan pemain yang dikoreksi lewat "Maksudmu?" atau "salah paham?", ditambah pesan yang menyebut nama tapi tidak dipahami. Patokannya di bawah 10%. Laporan mingguan menampilkan angka minggu ini, tren dibanding minggu lalu, riwayat 12 minggu (disimpan di `brain.json`), jenis koreksi terbanyak, dan kata yang sering muncul di pesan yang gagal dipahami (hanya kata yang dipakai minimal 10 kali, tanpa teks utuh) sebagai bahan aturan baru.
+- **Tingkat salah paham** adalah ukuran utama apakah bot makin pintar: persentase pesan pemain yang tidak dipahami aturan, atau yang tebakan aturannya dibantah guru otomatis, voting, atau pesan susulan. Semuanya terdeteksi otomatis. Patokannya di bawah 10%. Laporan mingguan menampilkan angka minggu ini, tren dibanding minggu lalu, riwayat 12 minggu (disimpan di `brain.json`), jenis koreksi terbanyak, dan kata yang sering muncul di pesan yang gagal dipahami (hanya kata yang dipakai minimal 10 kali, tanpa teks utuh) sebagai bahan aturan baru.
 - **Gerbang uji**: `tests/nlu.mjs` menjalankan 194 kalimat pengembangan (wajib benar semua) dan 150 kalimat set uji tertutup (skornya tidak boleh turun dari `tests/holdout-baseline.json`) dengan otak baru. Kalau gagal, PR tidak dibuat.
 
 Model yang dilatih sendiri dari tebakannya tidak dipakai lagi untuk latihan, supaya kesalahannya tidak makin menguat.
