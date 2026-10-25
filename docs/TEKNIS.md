@@ -351,7 +351,19 @@ flowchart TD
 | Membela diri | Penuduh terakhir, satu bot lain | Penuduh mundur kalau tidak terlalu curiga. Kalau curiga, ia bertahan dengan bukti |
 | Salam, tawa, terima kasih | 1–2 bot | Balasan sewajarnya |
 
-Akurasi pada korpus uji: 14 dari 56 sebelum dirombak, sekarang 96 dari 96 (`tests/nlu.mjs`).
+Akurasi (`tests/nlu.mjs --all`):
+- Korpus pengembangan: 194/194 kalimat, dipakai saat menyusun aturan.
+- **Set uji tertutup** (`tests/nlu-holdout.mjs`, 150 kalimat, pedoman label di `tests/LABELS.md`): 89/150 (59%) sebelum perbaikan terakhir, sekarang 136/150 (91%). Set ini tidak dipakai untuk menyusun aturan, jadi angkanya jujur.
+
+Perbandingan dengan LLM di Cloudflare Workers AI (`bench/`), pada set tertutup yang sama:
+
+| Pendekatan | Akurasi |
+|---|---|
+| Aturan saja | 90,7% |
+| LLM saja | 66,7–87,3% (Llama 3.1 8B sampai Llama 3.3 70B) |
+| Aturan + LLM hanya saat aturan ragu (7% pesan) | 92,0–93,3% (terbaik Qwen3 30B, 0,6 detik) |
+
+Keputusan: game memakai aturan saja (offline, gratis, privasi tidak berubah). LLM baru dipasang kalau tingkat salah paham di lapangan bertahan di atas 10%.
 
 ## 11. Sistem belajar dari pemain
 
@@ -402,6 +414,16 @@ LR(ciri) = P(ciri | pemain bandar) / P(ciri | pemain warga)      // smoothing La
 - **Syarat dipakai**: minimal 30 hari-pemain per kelompok, dan ciri yang muncul kurang dari 10 kali diabaikan.
 - **Penerapan**: sebelum voting, `applyTells` mengalikan semua ciri yang muncul hari itu (total juga dibatasi 0,6–1,6). Hasilnya dikalikan ke kecurigaan setiap bot warga terhadap pemain.
 - **Contoh**: kalau data menunjukkan pemain yang jadi bandar cenderung diam, pemain yang diam akan sedikit lebih dicurigai bot.
+
+### Tingkat salah paham
+Ukuran utama apakah bot makin pintar:
+
+```
+tingkat salah paham = (pesan yang dikoreksi pemain + pesan yang menyebut nama tapi tidak dipahami) / semua pesan pemain
+```
+Patokannya di bawah 10%. Laporan mingguan menampilkan angka minggu ini, tren dibanding minggu lalu, riwayat 12 minggu (`brain.json` → `history`), jenis koreksi terbanyak (misalnya `mention → accuse`), dan kata yang sering muncul di pesan yang gagal dipahami. Kata baru masuk daftar kalau dipakai minimal 10 kali, jadi tidak ada teks utuh pemain di laporan publik.
+
+Kalau angka ini bertahan di atas patokan walaupun aturan sudah diperluas, pilihan berikutnya sudah diukur: memanggil LLM di Cloudflare Workers AI hanya untuk pesan yang membuat aturan ragu (lihat bagian 10 dan `bench/`).
 
 ### Siklus mingguan
 ```mermaid
@@ -475,7 +497,8 @@ npm run android:apk   # APK debug (butuh JDK 21 dari Android Studio)
 
 | Uji | Perintah | Memeriksa |
 |---|---|---|
-| Pemahaman pesan | `node tests/nlu.mjs` | 96 kalimat, termasuk konteks obrolan, dengan `brain.json` saat ini |
+| Pemahaman pesan | `node tests/nlu.mjs --all` | 194 kalimat pengembangan dan 150 kalimat set tertutup, termasuk konteks obrolan, dengan `brain.json` saat ini |
+| Benchmark LLM | `node bench/run.mjs --model …` lalu `node bench/hybrid.mjs` | Akurasi LLM saja dan gabungan aturan + LLM |
 | Keseimbangan | `ArisanSim.simulate(2000, 6)` di konsol browser | Persentase kemenangan warga dan rata-rata hari |
 | Permainan penuh | Skrip Playwright di Chromium dan WebKit | Semua layar dari beranda sampai akhir, mode bot dan oper HP, tanpa error dan tanpa halaman melebar |
 

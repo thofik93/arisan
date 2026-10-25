@@ -43,7 +43,8 @@ Setiap Senin 02.00 WIB, `.github/workflows/learn.yml` mengunduh data, melatih, m
 
 - **Model kata (naive Bayes)** belajar dari pesan yang diperjelas pemain dan dari tebakan aturan yang yakin. Model ini hanya dipakai saat aturan tidak menangkap maksud pesan, dengan ambang keyakinan yang dipilih supaya presisinya minimal 90% pada data uji. Butuh minimal 200 contoh.
 - **Gelagat**: membandingkan perilaku pemain manusia saat jadi bandar dan saat jadi warga (diam, menyangkal, menuduh, bertanya, mengaku Bendahara). Sebelum voting, bot menyesuaikan kecurigaannya terhadap pemain dengan pengali yang dibatasi 0,6–1,6.
-- **Gerbang uji**: `tests/nlu.mjs` menjalankan 96 kalimat uji dengan otak baru. Kalau ada satu saja yang salah, PR tidak dibuat.
+- **Tingkat salah paham** adalah ukuran utama apakah bot makin pintar: persentase pesan pemain yang dikoreksi lewat "Maksudmu?" atau "salah paham?", ditambah pesan yang menyebut nama tapi tidak dipahami. Patokannya di bawah 10%. Laporan mingguan menampilkan angka minggu ini, tren dibanding minggu lalu, riwayat 12 minggu (disimpan di `brain.json`), jenis koreksi terbanyak, dan kata yang sering muncul di pesan yang gagal dipahami (hanya kata yang dipakai minimal 10 kali, tanpa teks utuh) sebagai bahan aturan baru.
+- **Gerbang uji**: `tests/nlu.mjs` menjalankan 194 kalimat pengembangan (wajib benar semua) dan 150 kalimat set uji tertutup (skornya tidak boleh turun dari `tests/holdout-baseline.json`) dengan otak baru. Kalau gagal, PR tidak dibuat.
 
 Model yang dilatih sendiri dari tebakannya tidak dipakai lagi untuk latihan, supaya kesalahannya tidak makin menguat.
 

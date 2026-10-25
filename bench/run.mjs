@@ -21,10 +21,12 @@ async function ask(c) {
   const t0 = Date.now();
   const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/ai/run/${model}`, {
     method: 'POST', headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' },
-    body: JSON.stringify({ messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: userPrompt({ ...c, players: [...PLAYERS, ME], me: ME }) }], max_tokens: 120, temperature: 0 })
+    body: JSON.stringify({ messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: userPrompt({ ...c, players: [...PLAYERS, ME], me: ME }) + (process.argv.includes('--nothink') ? ' /no_think' : '') }], max_tokens: +arg('max', 160), temperature: 0 })
   });
   const j = await r.json();
-  const raw = j.result ? (j.result.response ?? j.result) : null;
+  const res = j.result || {};
+  const msg = res.choices && res.choices[0] && res.choices[0].message;
+  const raw = res.response ?? (msg ? msg.content : null);
   return { raw, ms: Date.now() - t0, usage: j.result && j.result.usage, error: j.success ? null : JSON.stringify(j.errors) };
 }
 

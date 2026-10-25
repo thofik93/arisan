@@ -113,13 +113,46 @@ const corrected = allH.filter(h => h.x).length;
 const fallback = allH.filter(h => h.g).length;
 const quitDay = {}; for (const r of quits) quitDay[r.day] = (quitDay[r.day] || 0) + 1;
 
+// ---------- tingkat salah paham: ukuran utama apakah bot makin pintar ----------
+// salah paham = pesan yang dikoreksi pemain ("Maksudmu?" / "salah paham?") + pesan yang menyebut nama tapi tidak dipahami.
+// Obrolan tanpa maksud ("chat") dihitung terpisah karena sering memang bukan untuk permainan.
+const missOf = hs => {
+  const miss = hs.filter(h => h.x || h.l === 'mention').length;
+  return { n: hs.length, miss, rate: hs.length ? miss / hs.length : null };
+};
+const DAY = 864e5, now = Date.now();
+const inWeek = (r, k) => { const t = Date.parse((r.at || '').replace(' ', 'T') + 'Z'); return isFinite(t) && t <= now - k * 7 * DAY && t > now - (k + 1) * 7 * DAY; };
+const hasDates = recs.some(r => r.at);
+const thisWeek = missOf((hasDates ? recs.filter(r => inWeek(r, 0)) : recs).flatMap(r => r.human || []));
+const lastWeek = missOf(recs.filter(r => inWeek(r, 1)).flatMap(r => r.human || []));
+const history = (prev.history || []).slice(-11);
+if (thisWeek.rate != null) history.push({ at: new Date().toISOString().slice(0, 10), rate: +thisWeek.rate.toFixed(4), n: thisWeek.n });
+const TARGET = .10;
+const fmt = x => x == null ? '-' : (100 * x).toFixed(1) + '%';
+const trend = thisWeek.rate != null && lastWeek.rate != null ? (thisWeek.rate < lastWeek.rate ? `turun ${((lastWeek.rate - thisWeek.rate) * 100).toFixed(1)} poin dari minggu lalu (${fmt(lastWeek.rate)}), bot makin paham` : thisWeek.rate > lastWeek.rate ? `naik ${((thisWeek.rate - lastWeek.rate) * 100).toFixed(1)} poin dari minggu lalu (${fmt(lastWeek.rate)}), perlu dicek` : 'sama dengan minggu lalu') : 'belum ada pembanding minggu lalu';
+// kata yang sering muncul di pesan yang gagal dipahami; hanya kata yang dipakai minimal 10 kali (tanpa teks utuh)
+const STOP = new Set(['aku', 'kamu', 'dia', 'bu', 'yang', 'itu', 'ini', 'sama', 'ya', 'sih', 'deh', 'dong', 'aja', 'kok', 'lah', 'nih', 'di', 'ke', 'dan', 'gak', 'udah', 'sudah', 'juga', 'tapi', 'kalau', 'kan', 'ada', 'mau', 'jadi', 'ibu', 'kalian']);
+const wc = {};
+for (const h of allH.filter(h => h.x || h.l === 'mention')) for (const w of new Set(h.n.split(' '))) if (/^[a-z-]{3,}$/.test(w) && !STOP.has(w)) wc[w] = (wc[w] || 0) + 1;
+const topWords = Object.entries(wc).filter(([, c]) => c >= 10).sort((a, b) => b[1] - a[1]).slice(0, 20);
+const corrections = {}; for (const h of allH.filter(h => h.x)) { const k = `${h.l} → ${h.x}`; corrections[k] = (corrections[k] || 0) + 1; }
+
 const brain = { version: (prev.version || 0) + 1, trainedAt: new Date().toISOString().slice(0, 10), games: recs.length,
-  slang: prev.slang || [], nb: nb || prev.nb || null, tells: tells || prev.tells || null };
+  slang: prev.slang || [], nb: nb || prev.nb || null, tells: tells || prev.tells || null,
+  history };
 fs.writeFileSync('brain.json', JSON.stringify(brain) + '\n');
 
 const report = `## Latihan otak bot v${brain.version}
 
 Data: **${recs.length} permainan** (${ended.length} selesai, ${quits.length} keluar di tengah jalan), ${allH.length} pesan pemain.
+
+### Tingkat salah paham ${thisWeek.rate == null ? '' : thisWeek.rate <= TARGET ? '✅' : '⚠️'}
+**${fmt(thisWeek.rate)}** dari ${thisWeek.n} pesan ${hasDates ? 'minggu ini' : ''} (patokan: di bawah ${fmt(TARGET)}). Tren: ${trend}.
+${history.length > 1 ? 'Riwayat: ' + history.map(h => `${h.at} ${fmt(h.rate)}`).join(' · ') : ''}
+
+Koreksi pemain (tebakan bot → maksud sebenarnya): ${Object.entries(corrections).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, c]) => `${k} (${c})`).join(', ') || '-'}
+
+Kata yang sering muncul di pesan yang gagal dipahami (bahan aturan baru): ${topWords.map(([w, c]) => `${w} (${c})`).join(', ') || '- (belum ada kata yang dipakai 10 kali atau lebih)'}
 
 ### Pemahaman pesan
 - Pesan yang tidak dipahami aturan: **${pct(notUnderstood, allH.length)}**
