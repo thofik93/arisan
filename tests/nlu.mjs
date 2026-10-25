@@ -18,6 +18,7 @@ const sets = [];
 if (!args.has('--holdout') || args.has('--all')) sets.push({ name: 'pengembangan', gate: 'all', cases: JSON.parse(fs.readFileSync(path.join(root, 'tests/nlu-corpus.json'), 'utf8')) });
 if (args.has('--holdout') || args.has('--all')) sets.push({ name: 'tertutup', gate: 'baseline', cases: (await import(path.join(root, 'tests/nlu-holdout.mjs'))).default });
 if (args.has('--holdout') || args.has('--all')) sets.push({ name: 'tertutup-2', gate: 'baseline', key: 'h2', cases: (await import(path.join(root, 'tests/nlu-holdout2.mjs'))).default });
+if (args.has('--holdout') || args.has('--all')) sets.push({ name: 'tertutup-3', gate: 'baseline', key: 'h3', cases: (await import(path.join(root, 'tests/nlu-holdout3.mjs'))).default });
 
 const b = await chromium.launch(); const p = await b.newPage();
 const errs = []; p.on('pageerror', e => errs.push(String(e)));

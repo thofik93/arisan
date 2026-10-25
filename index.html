@@ -1142,6 +1142,11 @@ function genDisagree(sp,t,x,why){
   const X=addr(sp,pl(x)),T=addr(sp,pl(t)),rs=why?reasonText(sp,why):null;
   return finish(sp,rs?`${o('Tunggu dulu','Hmm, aku gak setuju sama','Jangan buru-buru')} ${X}. ${cap(rs)}.`:`${o('Aku gak sependapat sama','Tunggu dulu')} ${X}. ${T} ${o('belum tentu bandar','kayaknya bukan')}.`,'defend');
 }
+/* Tidak setuju dengan PEMBELAAN orang lain: tetap curiga, dengan alasan kalau punya */
+function genDoubtDefense(sp,t,x,why){
+  const X=addr(sp,pl(x)),T=addr(sp,pl(t)),rs=why?reasonText(sp,why):null;
+  return finish(sp,rs?`${o('Tunggu dulu','Hmm, aku gak setuju sama','Jangan buru-buru')} ${X}. ${cap(rs)}.`:`${o('Tunggu dulu','Maaf, aku gak sependapat sama')} ${X}. ${o(`Aku masih curiga sama ${T}`,`${T} belum tentu bersih`,`${T} tetap perlu jelasin`)}.`,'accuse');
+}
 function genAnswer(sp,t,why){
   const T=addr(sp,pl(t)),c=confidenceOf(sp,t),rs=why?reasonText(sp,why):null;
   const head=c>.65?o(`Kalau aku sih yakin ${T}`,`Menurutku ${T}, jelas`):o(`Belum yakin, tapi kalau harus milih, ${T}`,`Mungkin ${T}`);
@@ -1202,9 +1207,10 @@ function genText(m){
     if(m.type==='claimBend'||m.type==='claimGosip'||m.type==='report')return genClaim(sp,m);
   }
   if(core==='agree')return genAgree(sp,m.target,m.x,m.why);
-  if(core==='disagree')return genDisagree(sp,m.target,m.x,m.why);
+  if(core==='disagree')return m.type==='accuse'?genDoubtDefense(sp,m.target,m.x,m.why):genDisagree(sp,m.target,m.x,m.why);
   if(core==='answer')return genAnswer(sp,m.target,m.why);
   if(core==='denyBack')return genDeny(sp,m.target,null);
+  if(core==='clarify')return genClarify(sp,m);
   if(core==='explain')return genExplain(sp,m.target,m.why);
   if(core==='insist')return genInsist(sp,m.target,m.why);
   if(m.type==='alibi')return genAlibi(sp);
@@ -1531,6 +1537,7 @@ const verdictOn=(p,t,me)=>(p.role==='bandar'?!isBandar(t):prob(p,t)>.35)
 function botReply(p,hm){
   if(!p.alive)return null;
   const me=human(),as=hm.as||'other';
+  if(as==='clarify')return{from:p.id,type:'react',core:'clarify',target:me.id,guess:hm.type==='mention'?'mention':hm.type,gt:hm.target};
   const hostile=['accuse','claimBend','claimGosip','report'].includes(hm.type)&&hm.value!==false;
   if(hm.type==='ask'){
     if(as==='role')return roleAnswer(p,me,true);
@@ -1577,7 +1584,7 @@ function botReply(p,hm){
   if(hm.target!=null&&hostile)return verdictOn(p,hm.target,me);
   if((hm.type==='defend'||(['claimBend','report','claimGosip'].includes(hm.type)&&hm.value===false))&&hm.target!=null){
     const agree=p.role==='bandar'?isBandar(hm.target)||rnd()<.5:prob(p,hm.target)<.4;
-    return agree?{from:p.id,type:'defend',target:hm.target,core:'react'}:{from:p.id,type:'accuse',target:hm.target,core:'disagree',x:me.id};
+    return agree?{from:p.id,type:'defend',target:hm.target,core:'react'}:{from:p.id,type:'accuse',target:hm.target,core:'disagree',x:me.id,why:bestReason(p,hm.target,true)};
   }
   if(hm.type==='angry')return{from:p.id,type:'react',core:p.bot==='bijak'||p.bot==='tegas'?'calm':'hurt'};
   if(hm.type==='cry')return{from:p.id,type:'react',core:'comfort',target:me.id};
@@ -1641,7 +1648,14 @@ function chatContext(){
   const claim=bots.find(m=>m.target!=null&&hostile(m))||null;
   const toMe=bots.slice(0,4).find(m=>m.target===me.id||(m.replyTo&&m.replyTo.from===me.id))||null;
   const stanceOf=m=>!m?null:hostile(m)?'accuse':'defend';
-  return{last,atMe,claim,stance,stanceDir:stanceOf(stance),you:(toMe||atMe||last||{}).from??null,third:stance?stance.target:(last&&last.target!=null&&last.target!==me.id?last.target:null)};
+  // pesan pemain sendiri yang terakhir hari ini (untuk "dia", "Bu X juga", "kalau Bu Y?", "soalnya …")
+  const all=G.msgs.filter(m=>m.from!=null).slice(-10).reverse();
+  const mine=all.find(m=>m.from===me.id&&(m.target!=null||m.ask))||null;
+  const mineDir=!mine?null:mine.type==='accuse'||((mine.type==='claimBend'||mine.type==='report'||mine.type==='claimGosip')&&mine.value)?'accuse':mine.type==='defend'||mine.value===false?'defend':null;
+  // orang ketiga yang paling baru dibicarakan, oleh siapa pun (termasuk pemain)
+  const recent=all.find(m=>m.target!=null&&m.target!==me.id&&pl(m.target).alive);
+  const third=recent?recent.target:stance?stance.target:(last&&last.target!=null&&last.target!==me.id?last.target:null);
+  return{last,atMe,claim,stance,stanceDir:stanceOf(stance),you:(toMe||atMe||last||{}).from??null,third,mine,mineDir};
 }
 /* ================= LAPISAN MAKNA =================
    Bukan mencari kata kunci, tapi menyusun struktur: SIAPA (pelaku) melakukan APA (predikat) kepada SIAPA (objek),
@@ -1661,8 +1675,9 @@ const SEMX={
   passVictim:/^(difitnah|dijebak|dituduh|dibohongi|dibohongin|ditipu|dikambinghitamkan|dikorbankan|dipojokin|dipojokkan|disalahin)$/,
   passTaken:/^(dicuri|diambil|ditilep|dibawa|digelapin|digelapkan|dikorupsi|disikat)$/,
   passDefended:/^(dibela|dibelain|dilindungi|dilindungin)$/,
+  passOut:/^(dikeluarin|dikeluarkan|diusir|dicoret|divote|dipilih|dikick|didepak|diwaspadai|dicurigai)$/,
   // sifat (setelah subjek): − mencurigakan, + bersih
-  traitNeg:/^(bandar|bandarnya|maling|pelaku|pelakunya|penipu|pembohong|ular|licik|licin|aneh|mencurigakan|jahat|munafik|palsu|gadungan|pengkhianat|curiga|bohong|tersangka|sus)$/,
+  traitNeg:/^(ngarang|ngawur|ngaco|bandar|bandarnya|maling|pelaku|pelakunya|penipu|pembohong|ular|licik|licin|aneh|mencurigakan|jahat|munafik|palsu|gadungan|pengkhianat|curiga|bohong|tersangka|sus)$/,
   traitPos:/^(jujur|baik|bersih|amanah|lurus|polos|tulus|korban|aman|benar|bener|suci)$/,
   // kabar dan omongan
   rumorAbout:/^(kabar|kabarnya|gosip|berita|isu|desas-desus)$/,
@@ -1720,7 +1735,7 @@ function semRead(s,words0,ments0,ctx,youId,me){
         if(lastSubj==null&&/\b(bohong|ngibul|ngarang|ngaco|ngawur|fitnah|munafik|palsu)\b/.test(c)&&ctx.last&&ctx.last.target!=null&&ctx.last.target!==me.id)return{k:'p',id:ctx.last.from};
         const id=lastSubj??ctx.third;return id!=null?{k:'p',id}:null;}if(x==='kita'||x==='kalian')return{k:'group'};
       if(SEMX.rumorAbout.test(x)||SEMX.rumorOwn.test(x))return{k:'rumor',own:SEMX.rumorOwn.test(x),i};if(x==='bandar'||x==='bandarnya')return{k:'bandar'};return null;};
-    const isPred=x=>x in SEMX.belief||SEMX.sidePos.test(x)||SEMX.sideNeg.test(x)||SEMX.steal.test(x)||SEMX.trick.test(x)||SEMX.badAct.test(x)||SEMX.passVictim.test(x)||SEMX.passTaken.test(x)||SEMX.passDefended.test(x);
+    const isPred=x=>SEMX.passOut.test(x)||x in SEMX.belief||SEMX.sidePos.test(x)||SEMX.sideNeg.test(x)||SEMX.steal.test(x)||SEMX.trick.test(x)||SEMX.badAct.test(x)||SEMX.passVictim.test(x)||SEMX.passTaken.test(x)||SEMX.passDefended.test(x);
     const flipAt=w.indexOf('xnobilang');
     const hedge=w.some(x=>SEMX.hedge.test(x))?.7:1;
     const negBefore=k=>{for(let j=k-1;j>=Math.max(0,k-4);j--){if(SEMX.neg.test(w[j]))return true;if(w[j][0]==='@'||isPred(w[j]))break;}return false;};
@@ -1765,10 +1780,11 @@ function semRead(s,words0,ments0,ctx,youId,me){
         continue;
       }
       // ---- sikap pembicara ----
-      if(x in SEMX.belief&&speaker){if(obj&&obj.k==='p'&&SEMX.belief[x]){add(obj.id,SEMX.belief[x]*s1*hedge,'belief');used=true;}continue;}
+      if(x in SEMX.belief&&speaker){if(obj&&obj.k==='p'&&SEMX.belief[x]){add(obj.id,SEMX.belief[x]*s1*hedge,'belief');if(ctx.stance&&obj.id===ctx.stance.from&&SEMX.belief[x]*s1>0)out.cred[obj.id]=(out.cred[obj.id]||0)+1;used=true;}continue;}
       if(SEMX.sidePos.test(x)){
         if(speaker&&obj&&obj.k==='p'){for(const o of rightObjs(k))add(o.id,s1*hedge,'side');used=true;}
         else if(sid!=null&&obj&&obj.k==='bandar'){add(sid,-1*hedge,'act');used=true;}
+        else if(sid!=null&&/^(kasihan|kasian)$/.test(x)){add(sid,s1*hedge,'side');used=true;}
         continue;
       }
       if(SEMX.sideNeg.test(x)||x==='awasi'){
@@ -1793,6 +1809,7 @@ function semRead(s,words0,ments0,ctx,youId,me){
         continue;
       }
       if(SEMX.passTaken.test(x)){if(obj&&obj.k==='p'){add(obj.id,-s1*hedge,'act');used=true;}continue;}
+      if(SEMX.passOut.test(x)){if(sid!=null){add(sid,-s1*hedge,'side');used=true;}continue;}
       if(SEMX.passDefended.test(x)){if(sid!=null){add(sid,-.8,'act');used=true;}continue;}
       // ---- laporan keluar/di rumah ----
       if(x==='keluar'||x==='dirumah'){const who=sid??(obj&&obj.k==='p'?obj.id:null);if(who!=null){const v=(x==='keluar')!==neg;out.report={t:who,v};add(who,v?-.5:.5,'report');used=true;}continue;}
@@ -1838,13 +1855,43 @@ function anonNorm(text){
   return words.map((w,i)=>{const m=ments.find(x=>x.i===i);if(m)return'<p'+m.id+'>';if(mine.includes(w))return'<me>';if(/\d{4,}/.test(w))return'<num>';return w;})
     .filter((w,i,a)=>!(w==='bu'&&/^<(p\d+|me)>$/.test(a[i+1]||''))).join(' ').slice(0,200);
 }
+/* Rujukan dengan deskripsi diganti nama orangnya, supaya lapisan berikutnya membacanya seperti nama biasa. */
+function resolveRefs(s,ctx,me){
+  const key=id=>{const k=nameKeys(pl(id));return ' bu '+k[k.length-1]+' ';};
+  const alive2=id=>id!=null&&pl(id).alive&&id!==me.id;
+  const last=pred=>{const m=[...G.msgs].reverse().find(pred);return m||null;};
+  const claimant=()=>{const m=last(x=>x.type==='claimBend'&&x.from!==me.id&&alive2(x.from));return m?m.from:(G.bendClaimers||[]).filter(alive2).slice(-1)[0]??null;};
+  const audited=()=>{const m=last(x=>x.type==='claimBend'&&x.target!=null&&alive2(x.target));return m?m.target:null;};
+  const reporter=()=>{const m=last(x=>x.type==='report'&&alive2(x.from));return m?m.from:null;};
+  const reported=()=>{const m=last(x=>x.type==='report'&&x.value&&alive2(x.target));return m?m.target:null;};
+  const rumored=()=>{const n=(G.news||[]).find(x=>x.type==='fitnah'&&alive2(x.target));if(n)return n.target;const m=last(x=>x.type==='rumor'&&alive2(x.target));return m?m.target:null;};
+  const accused=()=>{const m=last(x=>x.from!==me.id&&x.target!=null&&alive2(x.target)&&(x.type==='accuse'||((x.type==='claimBend'||x.type==='report')&&x.value)));return m?m.target:null;};
+  const quiet=()=>{const bots=alive().filter(q=>!q.human);const c=q=>G.msgs.filter(m=>m.from===q.id).length;const min=Math.min(...bots.map(c));const qs=bots.filter(q=>c(q)===min);return qs.length===1?qs[0].id:null;};
+  const R=[
+    [/\b(yang|orang yang) (ngaku|mengaku)( ngaku)?( jadi)? bendahara( tadi| itu| barusan)?\b|\bbendahara (palsu|gadungan)( itu| tadi)?\b|\bsi (ngaku|tukang ngaku) bendahara\b/g,claimant],
+    [/\b(yang|orang yang) (lihat|liat|ngintip|intip|bilang lihat|bilang liat)( \S+){0,3}? keluar( rumah)?( tadi| semalam| itu)?\b|\b(yang|orang yang) (lihat|liat|ngintip|intip)( tadi| itu)?\b/g,reporter],
+    [/\b(yang|orang yang) (dilihat|diliat|diintip|ketahuan|kelihatan|keliatan) keluar( rumah)?( tadi| semalam| itu)?\b/g,reported],
+    [/\b(yang|orang yang) (diaudit|dituduh bendahara|dibilang bandar sama bendahara)( tadi| itu)?\b/g,audited],
+    [/\b(yang|orang yang) (digosipin|digosipkan|difitnah|kena fitnah|kena gosip|dikabarin|dikabarkan|jadi bahan gosip)( tadi pagi| tadi| pagi ini| pagi tadi| itu)?\b/g,rumored],
+    [/\b(yang|orang yang)( dari tadi| barusan| tadi)? (nuduh|nuduhin|fitnah|nyerang|nyalahin|mojokin|nyudutin) aku( tadi| itu| terus| mulu)?\b/g,()=>ctx.atMe?ctx.atMe.from:null],
+    [/\b(yang|orang yang) (dituduh|dicurigai)( tadi| barusan| itu)?\b/g,accused],
+    [/\b(yang|orang yang) (barusan|tadi) (ngomong|bilang|bicara|nulis)\b|\b(sama|dengan) yang (tadi|barusan)\b(?! \S+ (nuduh|bilang))/g,()=>ctx.last?ctx.last.from:null],
+    [/\b(yang|orang yang)( dari tadi)? (diem|diam|gak ngomong|gak bersuara)( aja| terus| mulu| dari tadi)?\b/g,quiet],
+  ];
+  const named=pre=>alive().some(q=>q.id!==me.id&&nameKeys(q).some(k=>new RegExp('\\b'+k+'\\b').test(pre)));
+  for(const [re,fn] of R)s=s.replace(re,(m0,...a)=>{const off=a[a.length-2];if(/bendahara (palsu|gadungan)/.test(m0)&&named(s.slice(0,off)))return m0;const id=fn();if(!alive2(id))return m0;const pre=/^\s*(sama|dengan)\b/.test(m0)?' sama':'';return pre+key(id);});
+  // "yang sandal(nya) merah": semua pemilik sandal itu
+  s=s.replace(/\b(yang|orang yang) sandal(nya)? (merah|hijau|biru|kuning)\b/g,(m0,a,b,col)=>{const ids=alive().filter(q=>!q.human&&q.sandal===col).map(q=>q.id);return ids.length?ids.map(key).join(' sama '):m0;});
+  return s.replace(/\s+/g,' ');
+}
+
 /* untuk uji: lihat struktur yang dibaca lapisan makna */
-function semDebug(text){const s=normText(text),words=s.trim().split(' '),ments=findMentions(words),ctx=chatContext();
+function semDebug(text){const ctx0=chatContext(),s=resolveRefs(normText(text),ctx0,human()),words=s.trim().split(' '),ments=findMentions(words),ctx=chatContext();
   let t=' '+words.map((w,i)=>{const m=ments.find(x=>x.i===i);return m?'@'+m.id:w;}).join(' ').replace(/\b(bu|jeng|si|mbak|bunda|tante|hajjah|hj)\s+(?=@)/g,'')+' ';for(const [re,to] of SEM_PHRASES)t=t.replace(re,' '+to+' ');
   const r=semRead(s,words,ments,ctx,ctx.you,human());return{tokens:t.replace(/\s+/g,' ').trim(),score:r.score,cred:r.cred,selfDeny:r.selfDeny,report:r.report,attackBy:r.attackBy};}
 function parseHuman(text){
   const me=human(),ctx=chatContext();
-  const s=normText(text),has=re=>re.test(s);
+  const s=resolveRefs(normText(text),ctx,me),has=re=>re.test(s);
   const words=s.trim().split(' ');
   const ments=findMentions(words);
   const vocative=ments.length&&ments[0].i<=1&&(words[ments[0].i+1]===','||words.length<=ments[0].i+1||V_NEXT.test(words[ments[0].i+1]||''))?ments[0].id:null;
@@ -1879,6 +1926,27 @@ function parseHuman(text){
   // memanggil Bendahara atau yang punya info untuk bicara, tanpa tanda tanya
   if(!ments.length&&!has(/\b(aku|sebagai)\b.{0,12}\bbendahara/)&&(has(/\bbendahara\w*\b.*\b(ngaku|buka kartu|muncul|ngomong|keluar)\b/)||has(/\b(ngaku|buka kartu)\b.*\bbendahara/)||has(/\byang (tau|tahu|punya info|punya bukti)\w*\b.*\b(ngomong|bilang|cerita|share|ngaku)\b/)))return res('ask',{ask:'callRole'});
   if(has(/\b(makasih|terima kasih|thanks|thank you|tq|nuhun|matur nuwun)\b/))return res('thanks',{target:ments[0]?ments[0].id:ctx.you});
+  // ---- kelanjutan dari pesan pemain sendiri ----
+  const mine=ctx.mine;
+  // "kalau Bu Y?", "terus Bu Y gimana?": pertanyaan yang sama untuk orang lain
+  if(mine&&mine.ask&&ments.length===1&&has(/^\s*(kalau|kalo|terus|trus|lalu|nah|trs)\b/)&&words.length<=7&&!has(W_ACCUSE))
+    return res('ask',{ask:mine.ask,addressee:ments[0].id,target:mine.ask==='why'?null:ments[0].id,conf:.75});
+  // "Bu Y juga", "sama Bu Y juga ya": sikap yang sama untuk orang lain
+  if(ctx.mineDir&&ments.length===1&&has(/\bjuga\b/)&&words.filter(w=>!/^(bu|jeng|sama|juga|ya|deh|sih|dong|tuh|nih|aja|kok|,|\.|!)$/.test(w)).length<=1+(nameKeys(pl(ments[0].id)).length>1?1:0))
+    return res(ctx.mineDir,{target:ments[0].id,conf:.75});
+  // menegaskan lagi: "iya dia", "pokoknya dia", "tetap dia orangnya"
+  if(ctx.mineDir&&mine&&mine.target!=null&&pl(mine.target).alive&&!ments.length&&has(/^\s*(iya|ya|pokoknya|tetep|tetap|bener|emang)\b/)&&has(/\bdia\b/)&&words.length<=6&&!has(/\b(bukan|gak|bersih|jujur|baik)\b/))
+    return res(ctx.mineDir,{target:mine.target,conf:.75});
+  // menarik ucapan: "aku salah tuduh", "maaf Bu X, aku salah", "aku cabut tuduhanku"
+  if(has(/\b(salah tuduh|salah nuduh|aku salah|aku keliru|cabut tuduhan\w*|tarik (omongan|tuduhan)\w*|maaf (ya )?udah nuduh)\b/)&&!has(/\b(kalian|kamu) salah\b/)){
+    const t=ments[0]?ments[0].id:mine&&mine.target!=null?mine.target:null;
+    if(t!=null&&pl(t).alive&&t!==me.id)return res('defend',{target:t,conf:.75});
+  }
+  // alasan susulan tanpa nama: "soalnya dia …", "karena semalem keluar" merujuk ke orang yang baru kamu bicarakan
+  const reasonCont=ctx.mineDir&&mine&&mine.target!=null&&!ments.length&&has(/^\s*(soalnya|karena|habisnya|abisnya|buktinya|alasannya|soale)\b/);
+  // jawaban satu nama: "kayaknya Bu X sih", "Bu X deh"
+  if(ments.length===1&&!isQ&&words.every(w=>/^(bu|jeng|si|kayaknya|mungkin|sih|deh|tuh|ya|aja|kali|dong|nih|kok|feeling|pasti|fix|,|\.|!)$/.test(w)||nameKeys(pl(ments[0].id)).includes(w)||w===words[ments[0].i]))
+    return res('accuse',{target:ments[0].id,conf:.6});
   // ---- pertanyaan ----
   if(isQ){
     const subj=ments.length?ments[0].id:has(/\bkamu\b/)?youId:has(/\bdia\b/)?ctx.third:null;
@@ -1935,7 +2003,8 @@ function parseHuman(text){
   }
   // ---- membalas orang yang baru menuduhku: bantahan, kecuali jelas menyebut dia bandar/pembohong ----
   if(A!=null&&pl(A).alive&&ments.every(m=>m.id===A)&&!has(/\b(makasih|terima kasih|setuju|percaya (sama )?kamu)\b/)){
-    const selfDef=has(/\b(aku|diriku)\b.{0,10}\b(bukan|gak|bersih|jujur)\b|\bbukan aku\b/);
+    // alibi juga pembelaan diri: "semalem aku di rumah nonton tv", "aku nemenin anak"
+    const selfDef=has(/\b(aku|diriku)\b.{0,10}\b(bukan|gak|bersih|jujur)\b|\bbukan aku\b/)||has(/\b(aku|semalam)\b.*\b(di rumah|dirumah|tidur|ketiduran|nonton|masak|nemenin|jagain|ngurus|ke warung|ke apotek|lembur|ngaji|tahlilan|ronda|kerja)\b/)&&!ments.length;
     if(has(/\b(sumpah|demi allah|wallahi)\b/))return res('swear',{target:A,conf:.85});
     if((has(W_LIAR)||sem.neg.has(A))&&!selfDef)return res('accuse',{target:A,conf:.8});
     if(selfDef||has(W_REBUT)||has(/\b(jangan|kok|salah|bukan)\b/)||ments.length)return res('deny',{target:A,conf:ments.length||has(W_REBUT)?.8:.65});
@@ -2022,6 +2091,8 @@ function parseHuman(text){
   if(has_cry)return res('cry');
   if(has(/\b(dasar|tega|munafik|sialan|bodoh|bego|goblok|norak|nyebelin)\b/))return res('angry',{target:ments[0]?ments[0].id:null});
   if(has(W_ACCUSE)&&has(/\bdia\b/)&&ctx.third!=null&&!ments.length)return res('accuse',{target:ctx.third});
+  // alasan susulan yang isinya belum dikenal tetap melanjutkan sikap pemain terhadap orang yang sama
+  if(reasonCont)return res(ctx.mineDir,{target:mine.target,conf:.7});
   // aturan tidak menangkap maksudnya: tanya model kata hasil belajar dari pemain lain
   const learned=nbRes(BRAIN&&BRAIN.nb?BRAIN.nb.min:1);if(learned)return learned;
   if(ments.length)return res('mention',{target:ments[0].id});
@@ -2363,7 +2434,7 @@ function dayScreen(){
   screen='day';G.phase='day';G.token++;
   const tok=G.token,me=human();
   if(checkWin(false))return endScreen();
-  chat={queue:planSpeakers(),idx:0,fast:false,sent:0,done:false,act:null};
+  chat={queue:planSpeakers(),idx:0,fast:false,sent:0,done:false,act:null,pendingClarify:null,clarified:0};
   const last=G.day>=TUNE.maxDay;
   render(`
   <div class="chathead">
@@ -2581,19 +2652,42 @@ function bindComposer(){
   input.addEventListener('input',()=>{lastKeyAt=Date.now();});
   document.getElementById('msgForm').onsubmit=e=>{e.preventDefault();sendHuman(input.value);};
 }
+/* Bot ragu lalu bertanya balik ("Maksudnya Bu X curiga sama Bu Y?"). Jawaban singkat pemain mengonfirmasi atau membalik tebakan. */
+function confirmReply(text){
+  const pc=chat.pendingClarify;if(!pc||pc.day!==G.day)return null;
+  const s=normText(text),ws=s.trim().split(' ').filter(w=>!/^[,.!?]$/.test(w));
+  if(findMentions(s.trim().split(' ')).some(m=>m.id!==pc.target)||ws.length>6)return null;
+  if(pc.guess!=='mention'&&/^\s*(iya|iyaa|ya|yap|yup|yes|betul|bener|benar|he eh|heeh|tepat|nah itu|itu dia|oke|ok|iyes)\b/.test(s))return{type:pc.guess,target:pc.target,conf:.95,confirmed:true};
+  if(/^\s*(bukan|gak|salah|no)\b/.test(s)&&ws.length<=4){const f={accuse:'defend',defend:'accuse'}[pc.guess];return f?{type:f,target:pc.target,conf:.9,confirmed:true}:{type:'chat',conf:.3,confirmed:true};}
+  return null;
+}
+function genClarify(sp,m){
+  const M=addr(sp,human()),self=m.gt===sp.id,T=self?'aku':addr(sp,pl(m.gt));
+  const L={accuse:self?[`Maksudnya ${M} curiga sama aku?`,`${M} nuduh aku, gitu?`]:[`Maksudnya ${M} curiga sama ${T}?`,`Jadi ${M} nuduh ${T}, gitu?`,`${M} curiga ${T}, ya?`],
+    defend:self?[`${M} belain aku, ya?`,`Maksudnya ${M} percaya sama aku?`]:[`Maksudnya ${M} belain ${T}?`,`Jadi ${M} percaya sama ${T}?`],
+    mention:self?[`Aku kenapa, ${M}?`,`Ada apa sama aku, ${M}?`]:[`${cap(T)} kenapa, ${M}? Curiga atau gimana?`,`Maksudnya gimana soal ${T}, ${M}?`]};
+  return finish(sp,pickR(L[m.guess]||L.mention),'neutral');
+}
 function sendHuman(raw){
   const me=human();
   const text=String(raw||'').replace(/[<>]/g,'').trim().slice(0,160);
   if(!text||chat.sent>=MAX_SEND)return;
-  const hm=parseHuman(text);
+  // jawaban atas pertanyaan konfirmasi: tidak memakai jatah pesan, dan jadi data latih yang paling tepercaya
+  const pc=chat.pendingClarify,cr=confirmReply(text);
+  chat.pendingClarify=null;
+  const hm=cr||parseHuman(text);
+  if(cr&&pc&&G.rec&&G.rec.human[pc.recIdx]&&cr.type!=='chat'){G.rec.human[pc.recIdx].x=cr.type;G.rec.human[pc.recIdx].xt=pc.target;}
+  // ragu dan ada orang yang disebut: tanya balik dulu, jangan langsung mengubah keyakinan siapa pun
+  const unsure=!cr&&(hm.conf??1)<.6&&hm.target!=null&&pl(hm.target).alive&&!pl(hm.target).human&&(chat.clarified||0)<2&&['accuse','defend','mention'].includes(hm.type)&&G.mode==='bot';
   const m={from:me.id,text,type:'chat',target:hm.target};hm.from=me.id;hm.text=text;
   if(['accuse','defend','claimBend','claimGosip','report'].includes(hm.type)){m.type=hm.type;m.value=hm.value;if(hm.why)m.why=hm.why;}
   else if(hm.type==='swear'||hm.type==='deny'){m.type='swear';}
   else if(hm.type==='claimRole'&&hm.role==='bendahara'){m.type='claimRole';}
   else if(hm.type==='ask'){m.target=hm.target??hm.addressee;}
+  if(unsure){m.type='chat';m.value=undefined;m.why=undefined;}
   chat.waitDefense=0;
   if(G.rec&&G.rec.human.length<60){
-    const lab=hm.type==='ask'?'ask_'+hm.ask:hm.type;
+    const lab=cr?'confirm':hm.type==='ask'?'ask_'+hm.ask:hm.type;
     // petunjuk untuk belajar tanpa koreksi: keyakinan aturan, waktu kirim, dan 3 pesan bot terakhir sebagai konteks
     const cx=G.msgs.filter(x=>x.from!=null&&x.from!==me.id&&!pl(x.from).human).slice(-3).map(x=>[x.from,x.type,x.target??null,x.value==null?null:!!x.value]);
     const rl=chat.lastBotAt?Math.min(600,Math.round((Date.now()-chat.lastBotAt)/1000)):null;
@@ -2601,16 +2695,22 @@ function sendHuman(raw){
   }
   applyMsg(m);addHeat(m);
   // sikap tambahan dalam kalimat yang sama ("Bu A bukan bandar, Bu B yang bandar")
-  for(const e of hm.extra||[])if(e.target!=null&&pl(e.target).alive)applyMsg({from:me.id,type:e.type,target:e.target,noFollow:true});
+  for(const e of unsure?[]:hm.extra||[])if(e.target!=null&&pl(e.target).alive)applyMsg({from:me.id,type:e.type,target:e.target,noFollow:true});
   G.humanStats.statements++;
   const hid='h'+(G.msgCounter=(G.msgCounter||0)+1);
-  addToFeed(msgHTML(m,hid));sfx.send();chat.sent++;
+  addToFeed(msgHTML(m,hid));sfx.send();if(!cr)chat.sent++;
   if(REACTS[m.type])setTimeout(()=>addReacts(hid,m.type),1400);
   // siapa yang menanggapi, sesuai maksud pesan
   const R=[];
   const add=(id,as)=>{if(id!=null&&id!==me.id&&pl(id).alive&&!pl(id).human&&!R.some(r=>r.id===id))R.push({id,as});};
   const nextOther=()=>{const c=shuffle(alive().filter(p=>!p.human&&!R.some(r=>r.id===p.id))).sort((a,b)=>PERS[b.bot].talk-PERS[a.bot].talk);return c.length?c[0].id:null;};
-  if(hm.type==='ask'){
+  if(unsure){
+    // yang ditanya balik: orangnya sendiri kalau dia bot, atau ibu yang paling kepo
+    const t=pl(hm.target),asker=!t.human&&t.alive?t.id:nextOther();
+    add(asker,'clarify');
+    chat.pendingClarify={guess:hm.type==='mention'?'mention':hm.type,target:hm.target,day:G.day,recIdx:G.rec?G.rec.human.length-1:-1};
+    chat.clarified=(chat.clarified||0)+1;
+  }else if(hm.type==='ask'){
     if(hm.ask==='callRole'){
       const bd=alive().find(p=>p.role==='bendahara'&&!p.human);if(bd&&rnd()<.6)add(bd.id,'role');
       const fake=alive().find(p=>p.role==='bandar'&&!p.human&&p.strategy==='palsu');if(fake&&rnd()<.4)add(fake.id,'role');

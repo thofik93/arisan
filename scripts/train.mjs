@@ -19,7 +19,7 @@ const prev = fs.existsSync('brain.json') ? JSON.parse(fs.readFileSync('brain.jso
 
 // ---------- label untuk model kata: bot belajar tanpa koreksi manual ----------
 // Setiap pesan diberi label dari sumber paling tepercaya yang tersedia:
-//   x       pilihan pemain (dari versi lama "Maksudmu?")                      bobot 3
+//   x       jawaban pemain atas pertanyaan konfirmasi bot ("Maksudnya … ?" → iya/bukan)  bobot 3
 //   tl      guru otomatis: LLM di server memberi label pesan yang membuat aturan ragu   bobot 2
 //   susulan pesan berikutnya soal orang yang sama, yang dipahami dengan yakin       bobot 1,5
 //   voting  pemain menyebut X lalu memilih X: pesannya bermusuhan dengan X          bobot 1,5

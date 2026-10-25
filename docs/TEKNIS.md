@@ -376,6 +376,36 @@ Komponennya:
 
 Hasil lapisan makna menang atas pola lama untuk orang yang dibacanya. Pola lama tetap menjadi cadangan untuk kalimat yang tidak punya struktur yang dikenali. `semDebug(teks)` di `ArisanSim.debug` menampilkan struktur yang dibaca bot.
 
+### Konteks percakapan (`chatContext`, `resolveRefs`)
+Pesan dibaca bersama percakapan sebelumnya, **termasuk pesan pemain sendiri**:
+
+| Pemain menulis | Konteks | Dibaca sebagai |
+|---|---|---|
+| "soalnya dia keluar rumah semalem" | sebelumnya: "aku curiga Bu Sri" | menuduh Bu Sri, dengan alasan |
+| "Bu Dewi juga" | sebelumnya menuduh Bu Sri | menuduh Bu Dewi |
+| "kalau Bu Wati?" | sebelumnya bertanya alibi Bu Dewi | bertanya alibi Bu Wati |
+| "iya dia", "tetap dia orangnya" | sebelumnya menuduh Bu Sri | menegaskan tuduhan |
+| "maaf ya Bu Sri, aku salah tuduh" | | menarik tuduhan, membela Bu Sri |
+| "semalem aku di rumah aja nonton tv" | Bu Lilis baru menuduhku | membela diri dari Bu Lilis |
+| "kayaknya Bu Lilis sih" | | menuduh Bu Lilis (keyakinan rendah) |
+
+**Rujukan dengan deskripsi** diganti nama orangnya sebelum dibaca:
+- "yang ngaku bendahara", "bendahara palsu itu";
+- "yang lihat", "yang ketahuan keluar";
+- "yang diaudit", "yang dituduh tadi";
+- "yang digosipin tadi pagi", "yang kena fitnah";
+- "yang nuduh aku", "yang barusan ngomong", "yang dari tadi diem";
+- "yang sandalnya merah".
+
+Kalau sudah ada nama sebelumnya, "bendahara palsu" diperlakukan sebagai tuduhan, bukan rujukan. Percaya pada pemberi pendapat ("aku percaya sama yang ngaku bendahara") berarti setuju dengan pendapatnya.
+
+### Bertanya balik saat ragu (`confirmReply`, `genClarify`)
+Kalau keyakinan bot di bawah 0,6 dan ada orang yang disebut, bot **tidak langsung bereaksi**. Orang yang disebut (atau ibu yang paling kepo) bertanya balik, misalnya "Maksudnya Bu Susi percaya sama aku?" atau "Bu Sri kenapa, Bu Susi? Curiga atau gimana?". Maksimal dua kali per hari.
+
+- Selama belum dijawab, pesan itu tidak mengubah keyakinan bot mana pun.
+- Jawaban singkat "iya" mengonfirmasi tebakan, sedangkan "bukan" membalik tuduh ↔ bela. Jawaban ini tidak memakai jatah pesan.
+- Konfirmasi dicatat sebagai label `x`, yaitu data latih paling tepercaya (bobot 3), tanpa tombol koreksi apa pun.
+
 ### Siapa yang menjawab (`sendHuman`, `botReply`)
 | Maksud pemain | Penjawab | Isi jawaban |
 |---|---|---|
@@ -389,8 +419,9 @@ Hasil lapisan makna menang atas pola lama untuk orang yang dibacanya. Pola lama 
 | Salam, tawa, terima kasih | 1–2 bot | Balasan sewajarnya |
 
 Akurasi (`tests/nlu.mjs --all`):
-- Korpus pengembangan: 260/260 kalimat, dipakai saat menyusun aturan dan lapisan makna.
-- **Set uji tertutup 1** (`tests/nlu-holdout.mjs`, 150 kalimat, pedoman label di `tests/LABELS.md`): 89 (59%) → 136 (91%) dengan perbaikan pola → **138 (92%)** dengan lapisan makna.
+- Korpus pengembangan: 302/302 kalimat, dipakai saat menyusun aturan, lapisan makna, dan konteks.
+- **Set uji tertutup 1** (`tests/nlu-holdout.mjs`, 150 kalimat, pedoman label di `tests/LABELS.md`): 89 (59%) → 136 (91%) dengan perbaikan pola → 138 (92%) dengan lapisan makna → **139 (92,7%)** dengan konteks.
+- **Set uji tertutup 3** (`tests/nlu-holdout3.mjs`, 40 percakapan: pesan pemain sebelumnya, rujukan deskriptif, jawaban alibi, jawaban satu nama, menarik ucapan): **7 (17,5%) → 40 (100%)** dengan fitur konteks. Ditulis sebelum fitur konteks dibuat.
 - **Set uji tertutup 2** (`tests/nlu-holdout2.mjs`, 80 kalimat dengan susunan bervariasi: pasif, korban/pelaku, cakupan negasi, kabar): **38 (47,5%) dengan pola saja → 71 (88,8%) dengan lapisan makna.** Set ini ditulis sebelum lapisan makna dibuat dan tidak dipakai untuk menyusunnya.
 
 Perbandingan dengan LLM di Cloudflare Workers AI (`bench/`), pada set tertutup yang sama:
@@ -546,7 +577,7 @@ npm run android:apk   # APK debug (butuh JDK 21 dari Android Studio)
 
 | Uji | Perintah | Memeriksa |
 |---|---|---|
-| Pemahaman pesan | `node tests/nlu.mjs --all` | 260 kalimat pengembangan dan 230 kalimat di dua set tertutup, termasuk konteks obrolan, dengan `brain.json` saat ini |
+| Pemahaman pesan | `node tests/nlu.mjs --all` | 302 kalimat pengembangan dan 270 kalimat di tiga set tertutup, termasuk konteks obrolan, dengan `brain.json` saat ini |
 | Benchmark LLM | `node bench/run.mjs --model …` lalu `node bench/hybrid.mjs` | Akurasi LLM saja dan gabungan aturan + LLM |
 | Keseimbangan | `ArisanSim.simulate(2000, 6)` di konsol browser | Persentase kemenangan warga dan rata-rata hari |
 | Permainan penuh | Skrip Playwright di Chromium dan WebKit | Semua layar dari beranda sampai akhir, mode bot dan oper HP, tanpa error dan tanpa halaman melebar |
