@@ -265,6 +265,20 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 const rp=n=>'Rp'+Math.round(n).toLocaleString('id-ID');
 const jt=n=>'Rp'+(n/1e6).toLocaleString('id-ID',{minimumFractionDigits:1,maximumFractionDigits:1})+' jt';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+/* Pindahan dari thofik93.github.io: halaman lama membawa progres lewat #gw-import (bagian # tidak pernah dikirim ke server).
+   Hanya mengisi yang belum ada, atau mengganti progres yang lebih sedikit. */
+(function(){
+  const m=location.hash.match(/gw-import=([^&]+)/);if(!m)return;
+  try{
+    const d=JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g,'+').replace(/_/g,'/')))));
+    for(const k of Object.keys(d)){
+      if(!k.startsWith('arisan:'))continue;
+      const cur=localStorage.getItem(k);
+      if(cur==null||(k==='arisan:profile'&&((JSON.parse(d[k]).stats||{}).games||0)>((JSON.parse(cur).stats||{}).games||0)))localStorage.setItem(k,d[k]);
+    }
+  }catch(e){}
+  history.replaceState(null,'',location.pathname+location.search);
+})();
 const store={
   get(k,d){try{const v=localStorage.getItem('arisan:'+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
   set(k,v){try{localStorage.setItem('arisan:'+k,JSON.stringify(v));}catch(e){}}
@@ -416,8 +430,8 @@ if(location.protocol!=='file:'){const s=document.createElement('script');s.src=G
 if(P.share!=null)track('_consent',P.share);
 document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('.sp-link');if(a)track('sponsor_click',{slot:a.closest('#kocok')?'kocokan':'lemari',sponsor_id:a.dataset.sp});},true);
 const shareLink=()=>{const C=window.Capacitor;const native=!!(C&&C.isNativePlatform&&C.isNativePlatform());return native||location.protocol==='file:'?SITE.replace(/^https:\/\//,''):(location.host+location.pathname).replace(/\/$/,'');};
-// sponsors.json dan brain.json tetap dari GitHub Pages: di sana otomatis terbarui setiap kali main digabung
-const SPONSOR_URL='https://thofik93.github.io/arisan/sponsors.json';
+// sponsors.json dan brain.json disajikan portal langsung dari main di GitHub, jadi PR belajar yang digabung langsung berlaku
+const SPONSOR_URL='https://gamewarga.com/siapayangnilep/sponsors.json';
 const DEMO_SPONSORS=[
   {id:'demo-hijab',brand:'Toko Hijab Melati (contoh)',link:'https://example.com',
    slots:{hijab:{name:'Kerudung Melati Lavender',color:'#9b7fd1'},harian:{text:'Arisan Harian hari ini dipersembahkan oleh Toko Hijab Melati (contoh).'}}},
@@ -461,7 +475,7 @@ async function loadSponsors(){
    brain.json dilatih mingguan dari catatan permainan pemain yang setuju (lihat LEARNING.md).
    Isinya hanya data: slang baru, model kata (naive Bayes) untuk pesan yang tidak tertangkap aturan,
    dan "gelagat" pemain manusia yang bandar. Semua dibatasi supaya file yang rusak tidak bisa merusak game. */
-const BRAIN_URL='https://thofik93.github.io/arisan/brain.json';
+const BRAIN_URL='https://gamewarga.com/siapayangnilep/brain.json';
 const LEARN_API='https://api.gamewarga.com';// server Cloudflare (server/)
 const REC_V=1;
 const NB_CLASSES=['accuse','defend','deny','question','ask_alibi','ask_why','ask_role','greet','laugh','chat'];

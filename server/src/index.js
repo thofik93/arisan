@@ -4,7 +4,7 @@
    GET  /v1/stats   ringkasan, wajib token admin */
 import { SYSTEM, userPrompt, parseJSON, INTENTS } from '../../bench/prompt.mjs';
 
-const ORIGINS = ['https://gamewarga.com', 'https://www.gamewarga.com', 'https://gamewarga.thofik93.workers.dev', 'https://siapayangnilep.thofik93.workers.dev', 'https://thofik93.github.io', 'capacitor://localhost', 'https://localhost', 'http://localhost'];
+const ORIGINS = ['https://gamewarga.com', 'https://www.gamewarga.com', 'capacitor://localhost', 'https://localhost', 'http://localhost'];
 const MAX_BYTES = 48 * 1024;
 const PER_HOUR = 30;
 const ROLES = new Set(['bandar', 'bendahara', 'ketua', 'gosip', 'warga']);

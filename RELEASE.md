@@ -9,7 +9,7 @@ Panduan ini untuk merilis ARISAN versi aplikasi. Kode native sudah siap: aplikas
 | Akun | [Google Play Console](https://play.google.com/console), sekali bayar USD 25 | [Apple Developer Program](https://developer.apple.com/programs/), USD 99 per tahun |
 | Alat | Android Studio (JDK 21 bawaannya dipakai oleh skrip build) | Xcode di Mac |
 | ID aplikasi | `io.github.thofik93.arisan` | `io.github.thofik93.arisan` |
-| Kebijakan privasi | https://thofik93.github.io/arisan/privacy.html | sama |
+| Kebijakan privasi | https://gamewarga.com/siapayangnilep/privacy | sama |
 
 ID aplikasi tidak bisa diubah setelah rilis pertama. Kalau mau ganti, ubah dulu di `capacitor.config.json`, `android/app/build.gradle` (`namespace` dan `applicationId`), dan Bundle Identifier di Xcode.
 

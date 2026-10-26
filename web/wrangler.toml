@@ -2,6 +2,9 @@
 # Domain dipasang di Worker portal (repo gamewarga), yang meneruskan jalur /siapayangnilep/ ke Worker ini.
 name = "siapayangnilep"
 compatibility_date = "2025-09-01"
+# hanya dijangkau lewat portal (service binding); alamat workers.dev dan URL pratinjau dimatikan
+workers_dev = false
+preview_urls = false
 
 [assets]
 directory = "../dist-web"
