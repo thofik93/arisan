@@ -1,0 +1,1 @@
+Cabang ini hanya untuk GitHub Pages lama: semua alamat thofik93.github.io/arisan/ dialihkan ke https://gamewarga.com/siapayangnilep/ (progres pemain dibawa lewat #gw-import). Kode game ada di cabang main.
