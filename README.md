@@ -2,7 +2,7 @@
 
 Game social deduction ala ibu-ibu arisan, untuk web, Android, dan iOS. Ada Bandar Bodong di grup arisan yang tiap malam menilep uang kas. Temukan dan keluarkan dia dari grup sebelum pertemuan terakhir.
 
-**Main di browser:** https://thofik93.github.io/arisan/
+**Main di browser:** https://gamewarga.com/siapayangnilep/
 
 ## Mode main
 

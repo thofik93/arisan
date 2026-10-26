@@ -11,10 +11,10 @@
 <meta property="og:site_name" content="Siapa yang Nilep?">
 <meta property="og:title" content="Siapa yang nilep uang arisan? 🤫">
 <meta property="og:description" content="Ada yang diam-diam nilep kas grup. Cari tahu sebelum kasnya habis! Main gratis di browser.">
-<meta property="og:image" content="https://thofik93.github.io/arisan/og.png">
+<meta property="og:image" content="https://gamewarga.com/siapayangnilep/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:url" content="https://thofik93.github.io/arisan/">
+<meta property="og:url" content="https://gamewarga.com/siapayangnilep/">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234b1424'/%3E%3Crect x='10' y='14' width='44' height='30' rx='10' fill='%23fff1e6'/%3E%3Cpath d='M20 42 L18 54 L30 43 Z' fill='%23fff1e6'/%3E%3Ccircle cx='22' cy='29' r='4' fill='%23f2b632'/%3E%3Ccircle cx='32' cy='29' r='4' fill='%23f2b632'/%3E%3Ccircle cx='42' cy='29' r='4' fill='%23f2b632'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -408,12 +408,13 @@ const BRAND='Siapa yang Nilep?',SITE='https://gamewarga.com/siapayangnilep';
 const IN_PORTAL=/(^|\.)gamewarga\./.test(location.hostname);
 /* Statistik pemakaian (GA4) lewat gw.js milik portal, desain di gamewarga/docs/ANALYTICS.md.
    Hanya label dan angka; nama, isi chat, dan ID perangkat tidak pernah dikirim. */
-const GW_ORIGIN=IN_PORTAL?'':'https://gamewarga.thofik93.workers.dev'; // ganti ke https://gamewarga.com setelah domain aktif
+const GW_ORIGIN=IN_PORTAL?'':'https://gamewarga.com';
 const track=(name,params)=>{(window.gwq=window.gwq||[]).push([name,params]);};
 if(location.protocol!=='file:'){const s=document.createElement('script');s.src=GW_ORIGIN+'/gw.js';s.async=true;s.dataset.game='siapayangnilep';document.head.appendChild(s);}
 if(P.share!=null)track('_consent',P.share);
 document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('.sp-link');if(a)track('sponsor_click',{slot:a.closest('#kocok')?'kocokan':'lemari',sponsor_id:a.dataset.sp});},true);
 const shareLink=()=>{const C=window.Capacitor;const native=!!(C&&C.isNativePlatform&&C.isNativePlatform());return native||location.protocol==='file:'?SITE.replace(/^https:\/\//,''):(location.host+location.pathname).replace(/\/$/,'');};
+// sponsors.json dan brain.json tetap dari GitHub Pages: di sana otomatis terbarui setiap kali main digabung
 const SPONSOR_URL='https://thofik93.github.io/arisan/sponsors.json';
 const DEMO_SPONSORS=[
   {id:'demo-hijab',brand:'Toko Hijab Melati (contoh)',link:'https://example.com',
@@ -459,7 +460,7 @@ async function loadSponsors(){
    Isinya hanya data: slang baru, model kata (naive Bayes) untuk pesan yang tidak tertangkap aturan,
    dan "gelagat" pemain manusia yang bandar. Semua dibatasi supaya file yang rusak tidak bisa merusak game. */
 const BRAIN_URL='https://thofik93.github.io/arisan/brain.json';
-const LEARN_API='https://arisan-brain.thofik93.workers.dev';// server Cloudflare (server/)
+const LEARN_API='https://api.gamewarga.com';// server Cloudflare (server/)
 const REC_V=1;
 const NB_CLASSES=['accuse','defend','deny','question','ask_alibi','ask_why','ask_role','greet','laugh','chat'];
 const TELL_KEYS=['acc','acc2','def','deny','quiet','claim','ask'];
