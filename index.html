@@ -406,6 +406,13 @@ const cos=(slot,id)=>COSMETICS.find(c=>c.slot===slot&&c.id===id);
 const BRAND='Siapa yang Nilep?',SITE='https://gamewarga.com/siapayangnilep';
 // dibuka dari portal Game Warga: tampilkan jalan pulang ke daftar game
 const IN_PORTAL=/(^|\.)gamewarga\./.test(location.hostname);
+/* Statistik pemakaian (GA4) lewat gw.js milik portal, desain di gamewarga/docs/ANALYTICS.md.
+   Hanya label dan angka; nama, isi chat, dan ID perangkat tidak pernah dikirim. */
+const GW_ORIGIN=IN_PORTAL?'':'https://gamewarga.thofik93.workers.dev'; // ganti ke https://gamewarga.com setelah domain aktif
+const track=(name,params)=>{(window.gwq=window.gwq||[]).push([name,params]);};
+if(location.protocol!=='file:'){const s=document.createElement('script');s.src=GW_ORIGIN+'/gw.js';s.async=true;s.dataset.game='siapayangnilep';document.head.appendChild(s);}
+if(P.share!=null)track('_consent',P.share);
+document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('.sp-link');if(a)track('sponsor_click',{slot:a.closest('#kocok')?'kocokan':'lemari',sponsor_id:a.dataset.sp});},true);
 const shareLink=()=>{const C=window.Capacitor;const native=!!(C&&C.isNativePlatform&&C.isNativePlatform());return native||location.protocol==='file:'?SITE.replace(/^https:\/\//,''):(location.host+location.pathname).replace(/\/$/,'');};
 const SPONSOR_URL='https://thofik93.github.io/arisan/sponsors.json';
 const DEMO_SPONSORS=[
@@ -424,7 +431,7 @@ function activeSponsors(list){
 function sponsorFor(slot){const xs=SPONSORS.filter(x=>x.slots[slot]);return xs.length?xs[Math.floor(Math.random()*xs.length)]:null;}
 const safeLink=u=>/^https:\/\/[^\s"'<>]+$/.test(u||'')?u:null;
 const sponsorChip=brand=>`<span class="sp-chip">Sponsor · ${esc(String(brand).slice(0,40))}</span>`;
-function sponsorLink(x){const l=safeLink(x&&x.link);return l?`<a class="sp-link" href="${esc(l)}" target="_blank" rel="noopener sponsored">Lihat promo</a>`:'';}
+function sponsorLink(x){const l=safeLink(x&&x.link);return l?`<a class="sp-link" data-sp="${esc(String(x.brand||x.sponsor||''))}" href="${esc(l)}" target="_blank" rel="noopener sponsored">Lihat promo</a>`:'';}
 function applySponsorCosmetics(){
   for(let i=COSMETICS.length-1;i>=0;i--)if(COSMETICS[i].sponsor)COSMETICS.splice(i,1);
   for(const x of SPONSORS){
@@ -554,10 +561,10 @@ function shareGame(result){
   if(P.share===false||result==='quit')return;
   // pertama kali: tanya izin di layar akhir
   setTimeout(()=>openSheet(`<h3>Bantu ibu-ibu bot makin pintar?</h3>
-    <p class="small">Kirim catatan permainan ini secara anonim: hasil, voting, dan pesan yang kamu ketik. Nama diganti penanda, tanpa akun dan tanpa ID perangkat. Dari catatan semua pemain, bot belajar memahami bahasamu dan membaca gelagat.</p>
+    <p class="small">Kirim catatan permainan ini secara anonim: hasil, voting, dan pesan yang kamu ketik, plus statistik pemakaian (Google Analytics, tanpa isi pesan). Nama diganti penanda, tanpa akun dan tanpa ID perangkat. Dari catatan semua pemain, bot belajar memahami bahasamu dan membaca gelagat.</p>
     <p class="small muted">Bisa dimatikan kapan saja di menu ⋯.</p>
     <div class="bottom stack" style="border:0;padding:0;background:none"><button class="primary" data-act="yes">Ya, bantu</button><button data-act="no">Tidak</button></div>`,b=>{
-      if(!b.dataset.act)return;P.share=b.dataset.act==='yes';saveP();closeSheet();if(P.share)queueRecord(rec);
+      if(!b.dataset.act)return;P.share=b.dataset.act==='yes';saveP();track('_consent',P.share);closeSheet();if(P.share)queueRecord(rec);
     }),1600);
 }
 
@@ -706,6 +713,8 @@ function newGame(opts){
      used:new Set(),shotDone:new Set(),heat:0,newsLog:[]};
   G.flags={};for(const k of Object.keys(FLAG_DEFAULTS))G.flags[k]=flag(k);
   G.hAlibi={};G.hStance={};
+  G.t0=Date.now();
+  if(opts.mode!=='sim')track('game_start',{mode:opts.daily?'daily':opts.mode,players:n,brain_version:BRAIN?BRAIN.version:0,exp:Object.keys(G.flags).map(k=>k+':'+(G.flags[k]?'on':'off')).join(',')});
   if(opts.mode==='bot')G.rec={exp:{...G.flags},v:REC_V,brain:BRAIN?BRAIN.version:0,n,daily:!!opts.daily,start:Date.now(),human:[]};
   // alur sinetron: sepasang musuh bebuyutan dan sepasang besti di antara bot
   const botIds=shuffle(players.filter(p=>!p.human).map(p=>p.id));
@@ -1495,7 +1504,7 @@ function dramaSpeak(s){
     return sysEvent(`<div class="sys news">📦 Kurir COD berhenti di depan rumah <b>${esc(t.name)}</b>, bawa ${pickR(PAKET)}. Bayarnya tunai, lho…</div>`,
       ()=>{G.newsLog.push({type:'paket',target:t.id,day:G.day});for(const v of alive())if(!v.human&&v.role!=='bandar')mulBelief(v,t.id,TUNE.paketLR);},'shot');
   }
-  if(s.drama==='kue'){const p=pl(s.who);if(!p.alive)return null;return{from:p.id,type:'flavor',sponsor:s.brand,noFollow:true,text:`Eh, aku bawa ${s.item} dari ${s.brand} ya buat pertemuan nanti 😋 Siapa mau?`};}
+  if(s.drama==='kue'){const p=pl(s.who);if(!p.alive)return null;track('sponsor_view',{slot:'kue',sponsor_id:s.brand});return{from:p.id,type:'flavor',sponsor:s.brand,noFollow:true,text:`Eh, aku bawa ${s.item} dari ${s.brand} ya buat pertemuan nanti 😋 Siapa mau?`};}
   if(s.drama==='curhat'){const p=pl(s.who);if(!p.alive||p.cried)return null;p.cried=true;return{from:p.id,type:'cry',core:'cry'};}
   if(s.drama==='pengakuan'){const p=pl(s.who);if(!p.alive||p.confessed)return null;p.confessed=true;return{from:p.id,type:'pengakuan',core:'pengakuan'};}
   if(s.drama==='rapat'){const p=pl(s.who);if(!p.alive)return null;return{from:p.id,type:'rapat',core:'rapat'};}
@@ -2370,11 +2379,11 @@ function openGameMenu(){
     <button data-act="close" class="primary">Tutup</button>`;
   const el=openSheet(draw(),(b)=>{
     if(b.dataset.speed){if(G&&G.rec&&chatSpeed!==b.dataset.speed)G.rec.sc=(G.rec.sc||0)+1;chatSpeed=b.dataset.speed;store.set('chatSpeed',chatSpeed);el.querySelector('.sheet').innerHTML='<span class="grab"></span>'+draw();return;}
-    if(b.dataset.act==='share'){P.share=!P.share;saveP();if(P.share)flushOutbox();else store.set('outbox',[]);el.querySelector('.sheet').innerHTML='<span class="grab"></span>'+draw();return;}
+    if(b.dataset.act==='share'){P.share=!P.share;saveP();track('_consent',P.share);if(P.share)flushOutbox();else store.set('outbox',[]);el.querySelector('.sheet').innerHTML='<span class="grab"></span>'+draw();return;}
     if(b.dataset.act==='sound'){muted=!muted;store.set('muted',muted);el.querySelector('.sheet').innerHTML='<span class="grab"></span>'+draw();return;}
     if(b.dataset.act==='close')return closeSheet();
     if(b.dataset.act==='quit'){el.querySelector('.sheet').innerHTML=`<span class="grab"></span><h3>Keluar dari permainan?</h3><p class="small muted">Permainan ini tidak disimpan.</p><div class="bottom stack" style="border:0;padding:0;background:none"><button data-act="quitYes" class="primary">Ya, keluar</button><button data-act="close">Batal</button></div>`;return;}
-    if(b.dataset.act==='quitYes'){closeSheet();app.onclick=null;if(G&&G.mode==='bot')shareGame('quit');homeScreen();}
+    if(b.dataset.act==='quitYes'){closeSheet();if(G)track('game_quit',{stage:screen,level:G.day,duration_s:Math.round((Date.now()-G.t0)/1000)});app.onclick=null;if(G&&G.mode==='bot')shareGame('quit');homeScreen();}
   });
 }
 /* Tips muncul sekali saja, tepat saat dibutuhkan */
@@ -2459,6 +2468,8 @@ function homeScreen(){
   on('#setN','click',botSetup);
   on('#playDaily','click',()=>{unlockAudio();askName(()=>startBotGame({n:6,daily:true}));});
   on('#playPass','click',()=>{unlockAudio();passSetup();});
+  if(hs&&!fresh)track('sponsor_view',{slot:'harian',sponsor_id:hs.brand});
+  const how=app.querySelector('details');if(how)how.addEventListener('toggle',()=>{if(how.open)track('tutorial_begin');},{once:true});
   on('#goLemari','click',()=>lemari('hijab'));
   on('#goAch','click',achScreen);
 }
@@ -2522,6 +2533,7 @@ function roleReveal(){
 }
 function nightScreen(){
   screen='night';G.phase='night';G.night={actions:{},results:{}};
+  track('level_start',{level:G.day});
   const me=human();
   for(const p of alive())if(!p.human)G.night.actions[p.id]=botNightAction(p);
   if(!me.alive){resolveNight();return dayScreen();}
@@ -2637,6 +2649,7 @@ function setStage(state){
 function startSidang(){
   if(screen!=='day'||chat.sidang)return;
   chat.sidang=true;const tok=++G.token;
+  track('sidang_start',{level:G.day});
   chat.queue=chat.queue.slice(0,chat.idx);
   const sus=alive().slice().sort((a,b)=>pubSusp(b.id)-pubSusp(a.id)).slice(0,2);
   const witness=shuffle(alive().filter(p=>!p.human&&!sus.includes(p)))[0];
@@ -2838,12 +2851,14 @@ function sendHuman(raw){
   if(!text||chat.sent>=MAX_SEND)return;
   // jawaban atas pertanyaan konfirmasi: tidak memakai jatah pesan, dan jadi data latih yang paling tepercaya
   const pc=chat.pendingClarify,cr=confirmReply(text);
+  if(pc&&pc.day===G.day)track('bot_clarify_reply',{answered:!!cr});
   chat.pendingClarify=null;
   const aw=chat.awaitAnswer;chat.awaitAnswer=null;
   let hm=cr||parseHuman(text);
   // jawaban atas pertanyaan bot: alibi tanpa nama tetap dibaca sebagai penjelasan untuk si penanya
   const sN=normText(text),ak=(aw&&aw.kind==='alibi')||/\b(aku|semalam)\b/.test(sN)?alibiOf(sN):null;
   if(!cr&&ak&&['chat','mention','question','report'].includes(hm.type)&&!findMentions(sN.trim().split(' ')).length)hm={type:'deny',target:aw?aw.from:(chatContext().atMe||{}).from??null,conf:.8};
+  track('chat_message',{intent:hm.type,understood:hm.type!=='chat',conf_bucket:(hm.conf??1)<.6?'low':(hm.conf??1)<.85?'mid':'high'});
   if(cr&&pc&&G.rec&&G.rec.human[pc.recIdx]&&cr.type!=='chat'){G.rec.human[pc.recIdx].x=cr.type;G.rec.human[pc.recIdx].xt=pc.target;}
   // menagih ucapan yang bertentangan
   let co=null;
@@ -2898,7 +2913,7 @@ function sendHuman(raw){
   if(unsure){
     // yang ditanya balik: orangnya sendiri kalau dia bot, atau ibu yang paling kepo
     const t=pl(hm.target),asker=!t.human&&t.alive?t.id:nextOther();
-    add(asker,'clarify');
+    add(asker,'clarify');track('bot_clarify',{intent:hm.type});
     chat.pendingClarify={guess:hm.type==='mention'?'mention':hm.type,target:hm.target,day:G.day,recIdx:G.rec?G.rec.human.length-1:-1};
     chat.clarified=(chat.clarified||0)+1;
   }else if(hm.type==='ask'){
@@ -2974,7 +2989,7 @@ function startVote(only,revote){
     if(id!=='go'&&id!=='abstain')return;
     if(id==='go'&&canVote&&sel==null)return;
     app.onclick=null;
-    if(canVote&&id==='go'){votes.push([me.id,sel]);G.humanStats.votes++;if(isBandar(sel))G.humanStats.votedBandar++;}
+    if(canVote&&id==='go'){votes.push([me.id,sel]);track('vote_cast',{correct:isBandar(sel),level:G.day});G.humanStats.votes++;if(isBandar(sel))G.humanStats.votedBandar++;}
     const ab=document.getElementById('abstain');if(ab)ab.remove();
     app.querySelector('.bottom').innerHTML='<button class="ghost" id="skipVotes">Tampilkan semua</button>';
     // suara dibuka satu per satu, dengan komentar
@@ -3072,6 +3087,7 @@ function kickScreen(t,over){
 function endScreen(){
   screen='end';
   if(G.mode==='bot')shareGame('end');
+  {const m=human();track('game_end',{mode:G.daily?'daily':G.mode,result:G.mode==='pass'?G.winner:G.winner===ROLE[m.role].team?'win':'lose',role:G.mode==='pass'?undefined:m.role,level:G.day,duration_s:Math.round((Date.now()-G.t0)/1000)});}
   const me=human();
   const pass=G.mode==='pass';
   let html='',share='';
@@ -3095,12 +3111,12 @@ function endScreen(){
       P.daily.streak=P.daily.last===y?P.daily.streak+1:1;P.daily.last=dk;
       P.daily.done[dk]={win:won,role:me.role,day:G.day};
     }
-    const r0=rankIdx(P.xp);P.xp+=xp;P.kue+=kue;const r1=rankIdx(P.xp);
+    const r0=rankIdx(P.xp);P.xp+=xp;P.kue+=kue;track('earn_virtual_currency',{virtual_currency_name:'kue',value:kue});const r1=rankIdx(P.xp);
     P.stats.games++;if(won)P.stats.wins++;
     const rs=P.stats.role[me.role]||{g:0,w:0};rs.g++;if(won)rs.w++;P.stats.role[me.role]=rs;
     // prestasi
     const newAch=[];
-    const give=id=>{if(!P.ach[id]){P.ach[id]=true;newAch.push(ACH.find(a=>a.id===id).name);}};
+    const give=id=>{if(!P.ach[id]){P.ach[id]=true;track('unlock_achievement',{achievement_id:id});newAch.push(ACH.find(a=>a.id===id).name);}};
     if(won&&team==='warga'&&G.kicked.length&&isBandar(G.kicked[0])&&pl(G.kicked[0]).kickedDay===1)give('detektif');
     if(won&&me.role==='bandar'&&me.votesGot===0)give('licin');
     if(G.auditedBandarByHuman)give('audit');
@@ -3129,6 +3145,7 @@ function endScreen(){
   on('#home','click',homeScreen);
   on('#again','click',()=>pass?passSetup():G.daily?startBotGame({n:6,daily:true}):startBotGame({n:G.n}));
   on('#shareBtn','click',async()=>{
+    track('share',{method:navigator.share?'native':'copy',content_type:'result'});
     try{
       const C=window.Capacitor;
       if(navigator.share){await navigator.share({text:share});return;}
@@ -3143,7 +3160,7 @@ function endScreen(){
     let i=0;const iv=setInterval(()=>{slot.textContent=names[i++%names.length];},90);
     setTimeout(()=>{
       clearInterval(iv);slot.textContent=winner;
-      if(won){slot.classList.add('won');P.kue+=KOCOK_PRIZE;P.kocokDry=0;if(!P.ach.kocok){P.ach.kocok=true;toast('Prestasi baru: Ratu Kocokan');}sfx.win();buzz();
+      if(won){slot.classList.add('won');P.kue+=KOCOK_PRIZE;track('earn_virtual_currency',{virtual_currency_name:'kue',value:KOCOK_PRIZE,item_name:'kocokan'});P.kocokDry=0;if(!P.ach.kocok){P.ach.kocok=true;toast('Prestasi baru: Ratu Kocokan');}sfx.win();buzz();
         e.target.outerHTML=`<p><b>Kamu dapat arisan! +${KOCOK_PRIZE} kue</b></p>`;}
       else{P.kocokDry=(P.kocokDry||0)+1;e.target.outerHTML=`<p class="small muted">Belum rezeki. Peluangmu di kocokan berikutnya naik jadi ${Math.round(kocokChance(G.n)*100)}%.</p>`;}
       saveP();
@@ -3153,6 +3170,7 @@ function endScreen(){
 
 function kocokSponsorHTML(){
   const x=sponsorFor('kocokan');if(!x)return '';
+  track('sponsor_view',{slot:'kocokan',sponsor_id:x.brand});
   const k=x.slots.kocokan;
   return `<div class="sp-box"><p class="small">${esc(String(k.text||('Kocokan dipersembahkan oleh '+x.brand)).slice(0,120))} ${sponsorChip(x.brand)}</p>
     ${k.prize?`<p class="small"><b>Promo:</b> ${esc(String(k.prize).slice(0,80))}</p>`:''}${sponsorLink(x)}</div>`;
@@ -3213,6 +3231,7 @@ function passReveal(p,next){
   on('#ok','click',next);
 }
 function passNight(){
+  track('level_start',{level:G.day});
   G.phase='night';G.night={actions:{},results:{}};
   passQueue(alive().map(p=>p.id),(p,next)=>{
     const r=ROLE[p.role];let sel=null;
@@ -3325,7 +3344,7 @@ function lemari(tab){
     const b=e.target.closest('button');if(!b)return;
     if(b.id==='back'){app.onclick=null;return homeScreen();}
     if(b.dataset.tab)return lemari(b.dataset.tab);
-    if(b.dataset.buy){const [s,id]=b.dataset.buy.split(':'),c=cos(s,id);if(P.kue<c.price)return;P.kue-=c.price;P.owned.push(b.dataset.buy);if(s!=='sticker')P[s]=id;saveP();sfx.win();return lemari(tab);}
+    if(b.dataset.buy){const [s,id]=b.dataset.buy.split(':'),c=cos(s,id);if(P.kue<c.price)return;P.kue-=c.price;track('spend_virtual_currency',{virtual_currency_name:'kue',value:c.price,item_name:b.dataset.buy});P.owned.push(b.dataset.buy);if(s!=='sticker')P[s]=id;saveP();sfx.win();return lemari(tab);}
     if(b.dataset.wear){const [s,id]=b.dataset.wear.split(':');P[s]=id;saveP();return lemari(tab);}
   };
 }
