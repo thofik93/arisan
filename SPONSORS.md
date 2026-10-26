@@ -1,6 +1,6 @@
 # Cara memasang sponsor
 
-Sponsor diatur lewat satu file, `sponsors.json`. Game web dan aplikasi Android/iOS membaca file ini dari `https://thofik93.github.io/arisan/sponsors.json` setiap kali dibuka. Jadi sponsor bisa ditambah, diganti, atau dihentikan cukup dengan mengubah file ini lalu push ke GitHub, tanpa rilis ulang aplikasi. Kalau pemain sedang offline, game memakai daftar terakhir yang tersimpan.
+Sponsor diatur lewat satu file, `sponsors.json`. Game web dan aplikasi Android/iOS membaca file ini dari `https://gamewarga.com/siapayangnilep/sponsors.json` setiap kali dibuka. Portal mengambilnya langsung dari `main` di GitHub (cache 5 menit), jadi sponsor bisa ditambah, diganti, atau dihentikan cukup dengan mengubah file ini lalu push ke `main`, tanpa deploy dan tanpa rilis ulang aplikasi. Kalau pemain sedang offline, game memakai daftar terakhir yang tersimpan.
 
 ## Slot yang tersedia
 
@@ -41,7 +41,7 @@ Sponsor hanya ditempatkan di momen positif. Nama brand tidak pernah muncul di pe
 
 ## Melihat tampilan contoh
 
-Buka https://thofik93.github.io/arisan/#sponsordemo untuk melihat semua slot terisi brand fiktif. Mode ini hanya untuk pratinjau dan menunjukkan contoh ke calon sponsor. Pemain biasa tidak melihatnya.
+Buka https://gamewarga.com/siapayangnilep/#sponsordemo untuk melihat semua slot terisi brand fiktif. Mode ini hanya untuk pratinjau dan menunjukkan contoh ke calon sponsor. Pemain biasa tidak melihatnya.
 
 ## Kategori yang tidak diterima
 

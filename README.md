@@ -99,14 +99,15 @@ Sengaja tidak ada: pembelian dengan uang sungguhan, loot box, sistem energi, ata
 
 ## Sponsor
 
-Pemasukan direncanakan dari sponsor langsung, bukan jaringan iklan. Brand bisa tampil di Lemari (kerudung edisi brand), kartu kocokan, Arisan Harian, dan kue arisan di grup chat, selalu dengan label "Sponsor" dan tidak pernah di petunjuk tentang bandar. Sponsor diatur lewat `sponsors.json` tanpa rilis ulang aplikasi. Cara memasangnya ada di [SPONSORS.md](SPONSORS.md), dan pratinjau semua slot bisa dilihat di https://thofik93.github.io/arisan/#sponsordemo.
+Pemasukan direncanakan dari sponsor langsung, bukan jaringan iklan. Brand bisa tampil di Lemari (kerudung edisi brand), kartu kocokan, Arisan Harian, dan kue arisan di grup chat, selalu dengan label "Sponsor" dan tidak pernah di petunjuk tentang bandar. Sponsor diatur lewat `sponsors.json` tanpa rilis ulang aplikasi. Cara memasangnya ada di [SPONSORS.md](SPONSORS.md), dan pratinjau semua slot bisa dilihat di https://gamewarga.com/siapayangnilep/#sponsordemo.
 
 ## Teknis
 
 - `index.html`: seluruh game dalam satu file (HTML, CSS, JS) tanpa build dan tanpa dependensi. Progres disimpan di `localStorage`.
 - `android/`, `ios/`: proyek native [Capacitor 7](https://capacitorjs.com).
 - `privacy.html`: kebijakan privasi untuk toko aplikasi.
-- Nama tampil game: **Siapa yang Nilep?** (domain: siapayangnilep.com). Situs: `web/wrangler.toml` (Worker aset statis dari `www/`).
+- Nama tampil game: **Siapa yang Nilep?**, di portal https://gamewarga.com/siapayangnilep/ (repo `thofik93/gamewarga`). Situs: `web/wrangler.toml` (Worker aset statis dari `dist-web/`, hanya lewat portal). Server belajar: https://api.gamewarga.com.
+- Statistik pemakaian: Google Analytics 4 lewat `gw.js` portal, ikut izin "Bantu bot belajar". Desainnya di `gamewarga/docs/ANALYTICS.md`.
 - `docs/TEKNIS.md`: dokumentasi teknis lengkap (teknologi, aturan, otak bot, pemahaman pesan, sistem belajar).
 - `LEARNING.md`: cara bot belajar dari catatan permainan pemain (server Cloudflare di `server/`, pelatihan di `scripts/train.mjs`, uji di `tests/`).
 - `brain.json`: otak hasil latihan yang diunduh game.

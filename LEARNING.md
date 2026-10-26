@@ -5,7 +5,7 @@ Bot ARISAN makin pintar dari catatan permainan pemain yang setuju berbagi data. 
 ```
 game (izin pemain) ──POST──▶ server Cloudflare (D1) ──ekspor──▶ GitHub Actions mingguan
       ▲                                                               │ latih + uji
-      └──────────── brain.json di GitHub Pages ◀── PR kamu setujui ◀──┘
+      └──── brain.json di gamewarga.com (dari main) ◀── PR kamu setujui ◀──┘
 ```
 
 ## 1. Yang dicatat game
@@ -37,7 +37,7 @@ npx wrangler@4.152.0 secret put ADMIN_TOKEN     # token panjang acak
 npx wrangler@4.152.0 secret put SALT            # teks acak lain
 npx wrangler@4.152.0 deploy
 ```
-Lalu isi `LEARN_API` di `index.html` dengan alamat worker, dan tambahkan secret repo `LEARN_API` serta `LEARN_ADMIN_TOKEN`.
+Worker ini dipasang di `https://api.gamewarga.com` (custom domain di `server/wrangler.toml`; alamat workers.dev dimatikan). `LEARN_API` di `index.html` dan secret repo `LEARN_API` berisi alamat itu; secret `LEARN_ADMIN_TOKEN` berisi token admin.
 
 ## 3. Pelatihan (`scripts/train.mjs`)
 Setiap Senin 02.00 WIB, `.github/workflows/learn.yml` mengunduh data, melatih, menguji, lalu membuka PR.
@@ -65,11 +65,11 @@ Bot belajar **tanpa koreksi manual**. Setiap pesan diberi label dari sumber pali
 Model yang dilatih sendiri dari tebakannya tidak dipakai lagi untuk latihan, supaya kesalahannya tidak makin menguat.
 
 ## 4. Game memakai otak baru
-Game mengunduh `brain.json` dari GitHub Pages setiap dibuka (seperti `sponsors.json`), jadi bot di web, Android, dan iOS ikut pintar tanpa rilis ulang. Isi file divalidasi dan dibatasi; file yang rusak diabaikan.
+Game mengunduh `brain.json` dari `https://gamewarga.com/siapayangnilep/brain.json` setiap dibuka (seperti `sponsors.json`). Portal mengambil file itu langsung dari `main` di GitHub (cache 5 menit), jadi begitu PR belajar digabung, bot di web, Android, dan iOS ikut pintar tanpa deploy atau rilis ulang. Isi file divalidasi dan dibatasi; file yang rusak diabaikan.
 
 ## Menganalisis data sendiri
 ```bash
-LEARN_API=https://... ADMIN_TOKEN=... node scripts/fetch-data.mjs data/export.jsonl
+LEARN_API=https://api.gamewarga.com ADMIN_TOKEN="$(cat ~/.config/arisan/admin-token)" node scripts/fetch-data.mjs data/export.jsonl
 node scripts/train.mjs data/export.jsonl   # menulis brain.json dan learning-report.md
 ```
 Folder `data/` tidak pernah di-commit. Repo ini publik.

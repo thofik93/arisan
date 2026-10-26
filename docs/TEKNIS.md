@@ -38,10 +38,12 @@ flowchart LR
   subgraph Perangkat pemain
     A[index.html<br/>game lengkap] -->|localStorage| S[(profil, outbox,<br/>sponsor, brain)]
   end
-  A -- unduh --> GP[GitHub Pages<br/>index.html, sponsors.json, brain.json]
-  A -- catatan permainan<br/>kalau pemain setuju --> CF[Cloudflare Worker<br/>+ D1]
+  A -- unduh --> GP[gamewarga.com/siapayangnilep<br/>index.html, sponsors.json, brain.json]
+  A -- catatan permainan<br/>kalau pemain setuju --> CF[api.gamewarga.com<br/>Cloudflare Worker + D1]
+  A -- statistik anonim --> GA4[Google Analytics 4<br/>lewat gw.js portal]
   CF -- ekspor --> GA[GitHub Actions<br/>latihan mingguan]
-  GA -- PR brain.json --> GP
+  GA -- PR brain.json ke main --> GH[GitHub main]
+  GH -- diambil portal, cache 5 menit --> GP
 ```
 
 Seluruh permainan berjalan di perangkat pemain. Server hanya dipakai untuk mengumpulkan catatan permainan yang dipakai melatih bot. Game tetap bisa dimainkan tanpa internet.
@@ -56,7 +58,8 @@ Seluruh permainan berjalan di perangkat pemain. Server hanya dipakai untuk mengu
 | Huruf | Baloo 2 dan Nunito dari Google Fonts | Lisensi SIL OFL, bebas dipakai komersial |
 | Penyimpanan | `localStorage` lewat pembungkus `store` | Profil, pengaturan, sponsor, otak bot, dan antrean catatan |
 | Aplikasi HP | Capacitor 7 (Android dan iOS) | Membungkus `index.html` yang sama ke WebView native |
-| Web | GitHub Pages | Hosting gratis untuk game, `sponsors.json`, dan `brain.json` |
+| Web | Cloudflare Workers di portal `gamewarga.com` (repo `thofik93/gamewarga`) | Game disajikan Worker aset statis `siapayangnilep` lewat portal; `sponsors.json` dan `brain.json` diambil portal dari `main` di GitHub |
+| Statistik | Google Analytics 4 (`gw.js` dari portal) | Mengukur performa game. Tanpa nama, isi chat, atau ID perangkat; cookie hanya dengan izin pemain |
 | Server belajar | Cloudflare Worker + database D1 (SQLite) | Gratis untuk volume awal, cepat di Asia |
 | Latihan bot | Node.js (`scripts/train.mjs`) di GitHub Actions | Tanpa dependensi, jalan setiap Senin |
 | Uji | Playwright (Chromium dan WebKit) | Menguji permainan penuh dan pemahaman pesan di browser sungguhan |
@@ -639,17 +642,20 @@ Lihat `SPONSORS.md`. Secara teknis:
 npm run sync          # build-web.mjs menyalin index.html, privacy.html, sponsors.json, brain.json ke www/, lalu cap sync
 npm run android:apk   # APK debug (butuh JDK 21 dari Android Studio)
 ```
-- Aplikasi native memuat file lokal dari `www/`. `sponsors.json` dan `brain.json` diunduh dari alamat absolut GitHub Pages.
+- Aplikasi native memuat file lokal dari `www/`. `sponsors.json` dan `brain.json` diunduh dari alamat absolut `https://gamewarga.com/siapayangnilep/`.
 - Tombol back Android menutup lembar yang terbuka. Saat bermain, tombol itu membuka menu.
 - Versi saat ini 1.0.0 (tag `v1.0.0`). Langkah rilis ke toko aplikasi ada di `RELEASE.md`.
 - **Situs di domain sendiri**: `node scripts/build-web.mjs && npx wrangler@4.152.0 deploy -c web/wrangler.toml`. Situs disajikan sebagai Worker aset statis bernama `siapayangnilep`, dan portal `gamewarga` meneruskan `https://gamewarga.com/siapayangnilep/` ke Worker itu. Server belajar hanya di `https://api.gamewarga.com` (Worker `arisan-brain`). Semua alamat workers.dev dan URL pratinjau dimatikan (`workers_dev = false`, `preview_urls = false`). `brain.json` dan `sponsors.json` disajikan portal di `/siapayangnilep/` langsung dari `main` di GitHub (cache 5 menit), jadi PR belajar yang digabung langsung berlaku tanpa deploy. GitHub Pages hanya berisi halaman pindahan (cabang `gh-pages`): progres pemain di github.io dibawa ke gamewarga.com lewat `#gw-import`, lalu dialihkan.
+- **Statistik pemakaian (GA4)**: game memuat `gw.js` dari portal (`GW_ORIGIN`) dan mengantrekan event lewat `track(name, params)` → `window.gwq`. Event: `game_start`, `level_start`, `game_end`, `game_quit`, `vote_cast`, `sidang_start`, `chat_message` (hanya jenis pesan dan apakah dipahami), `bot_clarify`, `bot_clarify_reply`, `share`, `sponsor_view`, `sponsor_click`, `earn_virtual_currency`, `spend_virtual_currency`, `unlock_achievement`, `tutorial_begin`. Izinnya ikut `P.share` (`track('_consent', P.share)`). Dari `file://` (uji otomatis) skrip tidak dimuat. Desain lengkap: `gamewarga/docs/ANALYTICS.md`.
+- **SEO**: canonical ke `https://gamewarga.com/siapayangnilep/`, `VideoGame` JSON-LD, dan isi `<noscript>` di `#app`.
+- **Pindahan dari github.io**: kode di awal skrip membaca `#gw-import` (progres dari halaman pindahan GitHub Pages), mengisi kunci `arisan:` yang belum ada atau profil yang permainannya lebih sedikit, lalu menghapus bagian `#` dari alamat.
 - **Server**: `cd server && npx wrangler@4.152.0 deploy`. Kredensial disimpan di `~/.config/arisan/` (token Cloudflare, token admin, salt), tidak di repo.
 
 ## 16. Pengujian
 
 | Uji | Perintah | Memeriksa |
 |---|---|---|
-| Pemahaman pesan | `node tests/nlu.mjs --all` | 321 kalimat pengembangan dan 270 kalimat di tiga set tertutup, termasuk konteks obrolan, dengan `brain.json` saat ini |
+| Pemahaman pesan | `node tests/nlu.mjs --all` | 325 kalimat pengembangan dan 270 kalimat di tiga set tertutup, termasuk konteks obrolan, dengan `brain.json` saat ini |
 | Benchmark LLM | `node bench/run.mjs --model …` lalu `node bench/hybrid.mjs` | Akurasi LLM saja dan gabungan aturan + LLM |
 | Keseimbangan | `ArisanSim.simulate(2000, 6)` di konsol browser | Persentase kemenangan warga dan rata-rata hari |
 | Permainan penuh | Skrip Playwright di Chromium dan WebKit | Semua layar dari beranda sampai akhir, mode bot dan oper HP, tanpa error dan tanpa halaman melebar |
@@ -675,4 +681,4 @@ npm run android:apk   # APK debug (butuh JDK 21 dari Android Studio)
 - **Bot tidak benar-benar memahami makna**. Bot bernalar dari fakta permainan yang terstruktur (siapa mengaku apa, siapa keluar, sandal warna apa) dan menyusun kalimat dari fakta itu.
 - **Model belajar baru berguna setelah ada cukup data**: sekitar 200 contoh pesan untuk model kata, dan 30 hari-pemain per peran untuk gelagat.
 - **Mode oper HP** tidak mengirim catatan belajar, karena diskusinya terjadi langsung, bukan lewat chat.
-- **GitHub Pages** tidak ditujukan untuk situs komersial. Kalau pemasukan sponsor sudah berjalan, pertimbangkan pindah ke Cloudflare Pages dengan domain sendiri.
+- **Aplikasi HP versi lama** (sebelum 26 Oktober 2026) mengirim catatan ke alamat workers.dev yang sudah dimatikan. Catatannya tertahan di antrean perangkat sampai aplikasi diperbarui; permainannya sendiri tetap jalan.
