@@ -402,7 +402,7 @@ const cos=(slot,id)=>COSMETICS.find(c=>c.slot===slot&&c.id===id);
    kue arisan), tidak pernah di petunjuk tentang bandar. Setiap kemunculan diberi label "Sponsor".
    Daftar dibaca dari sponsors.json, jadi bisa diganti tanpa merilis ulang aplikasi. */
 /* Merek dan alamat situs. Aplikasi HP memakai alamat tetap; versi web memakai alamat tempat ia dibuka. */
-const BRAND='Siapa yang Nilep?',SITE='https://siapayangnilep.com';
+const BRAND='Siapa yang Nilep?',SITE='https://gamewarga.com/siapayangnilep';
 const shareLink=()=>{const C=window.Capacitor;const native=!!(C&&C.isNativePlatform&&C.isNativePlatform());return native||location.protocol==='file:'?SITE.replace(/^https:\/\//,''):(location.host+location.pathname).replace(/\/$/,'');};
 const SPONSOR_URL='https://thofik93.github.io/arisan/sponsors.json';
 const DEMO_SPONSORS=[

@@ -17,3 +17,4 @@ bench/results/
 !.dev.vars.example
 .env*
 !.env.example
+dist-web/

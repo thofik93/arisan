@@ -1,6 +1,7 @@
-# Situs game di domain sendiri: Worker yang hanya menyajikan aset statis dari www/ (hasil scripts/build-web.mjs).
+# Game ini di portal gamewarga.com/siapayangnilep/: Worker aset statis dari dist-web/ (hasil scripts/build-web.mjs).
+# Domain dipasang di Worker portal (repo gamewarga), yang meneruskan jalur /siapayangnilep/ ke Worker ini.
 name = "siapayangnilep"
 compatibility_date = "2025-09-01"
 
 [assets]
-directory = "../www"
+directory = "../dist-web"
