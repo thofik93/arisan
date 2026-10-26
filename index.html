@@ -70,6 +70,7 @@ h3{font-family:var(--display);font-weight:800;font-size:1.05rem;margin:0}
 p{margin:0}
 .muted{color:var(--muted)}
 .small{font-size:13px}
+.portal-back{display:block;width:fit-content;font-size:13px;font-weight:800;color:var(--muted);text-decoration:none;padding:6px 0;margin-bottom:2px}
 .eyebrow{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--emas)}
 
 button{
@@ -403,6 +404,8 @@ const cos=(slot,id)=>COSMETICS.find(c=>c.slot===slot&&c.id===id);
    Daftar dibaca dari sponsors.json, jadi bisa diganti tanpa merilis ulang aplikasi. */
 /* Merek dan alamat situs. Aplikasi HP memakai alamat tetap; versi web memakai alamat tempat ia dibuka. */
 const BRAND='Siapa yang Nilep?',SITE='https://gamewarga.com/siapayangnilep';
+// dibuka dari portal Game Warga: tampilkan jalan pulang ke daftar game
+const IN_PORTAL=/(^|\.)gamewarga\./.test(location.hostname);
 const shareLink=()=>{const C=window.Capacitor;const native=!!(C&&C.isNativePlatform&&C.isNativePlatform());return native||location.protocol==='file:'?SITE.replace(/^https:\/\//,''):(location.host+location.pathname).replace(/\/$/,'');};
 const SPONSOR_URL='https://thofik93.github.io/arisan/sponsors.json';
 const DEMO_SPONSORS=[
@@ -2424,7 +2427,7 @@ function homeScreen(){
   render(`
   <div class="scroll">
     <div class="row between" style="align-items:flex-start">
-      <div><span class="eyebrow">Grup Arisan RT 05</span><h1 class="logo">Siapa yang<br>Nilep?</h1></div>
+      <div>${IN_PORTAL?'<a class="portal-back" href="/">← Game Warga</a>':''}<span class="eyebrow">Grup Arisan RT 05</span><h1 class="logo">Siapa yang<br>Nilep?</h1></div>
       <button class="ghost iconbtn" id="muteBtn" aria-label="${muted?'Nyalakan suara':'Matikan suara'}" aria-pressed="${muted}">${muted?'🔇':'🔊'}</button>
     </div>
     <p class="hook">Uang kas arisan hilang, dan pelakunya ada di grup. Ngobrol, curigai, lalu keluarkan dia sebelum kasnya habis.</p>
